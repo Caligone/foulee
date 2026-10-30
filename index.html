@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Foulée – analyse vidéo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body>
+<header class="bar">
+  <div class="brand"><span class="logo" aria-hidden="true"></span><span>Foulée</span></div>
+  <nav>
+    <button class="tab" data-view="new" aria-current="page">Nouvelle analyse</button>
+    <button class="tab" data-view="history">Historique</button>
+  </nav>
+</header>
+
+<main>
+  <!-- NOUVELLE ANALYSE -->
+  <section id="view-new" class="view">
+    <div class="intro">
+      <span class="eyebrow">Analyse de foulée · 100 % locale</span>
+      <h1>Dépose une vidéo de course, obtiens tes mesures</h1>
+      <p>La vidéo est analysée dans ce navigateur, image par image, avec un modèle d'estimation de pose. Rien n'est envoyé sur internet : seul le modèle est téléchargé au premier lancement s'il n'est pas déjà dans le dossier <code>vendor/models</code>.</p>
+    </div>
+    <div class="cols">
+      <form id="form" class="card" autocomplete="off">
+        <label id="drop" class="drop" for="file">
+          <input id="file" type="file" accept="video/*,.mov,.mp4,.m4v">
+          <span class="drop-t">Glisse la vidéo ici</span>
+          <span class="drop-s" id="file-name">ou clique pour choisir un fichier (.mov, .mp4)</span>
+        </label>
+        <div class="grid2">
+          <label>Taille (cm)<input id="height" type="number" min="120" max="220" step="1" value="172" required></label>
+          <label>Poids (kg)<input id="weight" type="number" min="30" max="150" step="0.5" value="54"></label>
+          <label class="span2">Libellé<input id="label" type="text" placeholder="ex. Footing du jeudi, chaussures X"></label>
+          <label>Précision du modèle
+            <select id="model"><option value="heavy">Élevée (lent)</option><option value="full">Standard (rapide)</option></select></label>
+          <label>Images/s<input id="fps" type="number" min="0" step="0.01" placeholder="auto"></label>
+        </div>
+        <button id="go" class="btn" type="submit" disabled>Analyser la vidéo</button>
+        <p id="form-err" class="err" hidden></p>
+      </form>
+      <aside class="card howto">
+        <h2>Comment filmer</h2>
+        <ol>
+          <li><b>Téléphone fixe</b>, posé ou sur trépied, à hauteur de hanche (≈ 1 m), bien vertical.</li>
+          <li><b>De profil</b> : à 3–4 m de ta ligne de course, 2 ou 3 passages.</li>
+          <li><b>De dos</b> : dans l'axe, tu t'éloignes de la caméra sur 10–15 m. C'est indispensable pour la chute du bassin et l'alignement des genoux.</li>
+          <li><b>À ta vraie allure</b>, sur sol plat, pieds visibles en entier (pas d'herbe haute devant).</li>
+          <li><b>60 images/s minimum</b> ; 120 ou 240 améliorent les temps de contact.</li>
+        </ol>
+        <p class="muted">Un passage de profil doit durer au moins 1 s dans le champ (≈ 3 appuis).</p>
+      </aside>
+    </div>
+  </section>
+
+  <!-- PROGRESSION -->
+  <section id="view-run" class="view" hidden>
+    <div class="cols">
+      <div class="card">
+        <h2>Analyse en cours</h2>
+        <ol id="steps" class="steps"></ol>
+        <div class="progress"><div id="bar"></div></div>
+        <p id="run-msg" class="muted"></p>
+        <button id="cancel" class="btn ghost" type="button">Annuler</button>
+      </div>
+      <div class="card center"><canvas id="live" width="384" height="384" aria-label="Aperçu de l'estimation de pose"></canvas></div>
+    </div>
+  </section>
+
+  <!-- RAPPORT -->
+  <section id="view-report" class="view" hidden>
+    <div id="report"></div>
+  </section>
+
+  <!-- HISTORIQUE -->
+  <section id="view-history" class="view" hidden>
+    <div class="intro"><h1>Historique</h1><p>Les analyses sont conservées dans ce navigateur, sur cette machine.</p></div>
+    <div id="history"></div>
+  </section>
+</main>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
