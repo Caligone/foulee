@@ -113,7 +113,7 @@ async function renderReport(a) {
   <section><h2>En bref</h2><ul class="prio">${cards.map((c) => `<li><span class="chip ${STATUS[c.st][0]}">${STATUS[c.st][1]}</span><h4>${c.t}</h4><p>${c.d}</p></li>`).join('')}</ul></section>
   <section><h2>Passages repérés</h2><div class="tablewrap"><table><thead><tr><th>Passage</th><th>Images analysées</th><th class="num">Allure</th><th class="num">Cadence</th><th class="num">Pas</th><th class="num">Contact · vol</th><th>Appuis</th></tr></thead><tbody>${a.passes.map((p, i) => {
     const m = p.metrics || {}, run = p.kind === 'profil' && prof.includes(p);
-    const steps = m.error ? 'non exploitable' : p.kind === 'profil' ? (m.footsOk ? `${m.nSteps}` : 'pieds peu visibles, ignoré') : `${m.contacts?.length ?? 0}`;
+    const steps = m.error ? 'non exploitable' : p.kind === 'profil' ? (!m.footsOk ? 'pieds peu visibles, ignoré' : m.nSteps < 2 ? `${m.nSteps} : trop peu, ignoré` : `${m.nSteps}`) : `${m.contacts?.length ?? 0}`;
     return `<tr><td><b>${i + 1}. ${KIND[p.kind]}</b> <span class="muted">${fmt(p.t0, 1)}–${fmt(p.t1, 1)} s</span></td><td>${p.frames.filter((f) => f.lm).length}/${p.frames.length}</td>
       <td class="num">${run ? `<span class="big">${pace(m.pace)}</span> /km` : '—'}</td><td class="num">${run ? `<span class="big">${fmt(m.cadence)}</span> pas/min` : '—'}</td>
       <td class="num">${run ? `${fmt(m.step_len, 2)} m` : '—'}</td><td class="num">${run ? `${fmt(m.contact_ms)} · ${fmt(m.flight_ms)} ms` : '—'}</td><td>${steps}</td></tr>`;
@@ -147,6 +147,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<
 
 function frontalHTML(p, a) {
   const m = p.metrics; if (!m.contacts) return '';
+  if (!m.contacts.length) return `<h3>${KIND[p.kind]} · ${fmt(p.t0, 1)}–${fmt(p.t1, 1)} s</h3><p class="empty">Aucun appui repéré sur ce passage : pieds masqués ou coureur trop loin.</p>`;
   const back = p.kind === 'dos';
   const warn = m.obliqueWarn ? '<p class="note">Le coureur se déplace de biais par rapport à la caméra : largeur d\'appui, bassin et genou sont faussés par la perspective. Mesures indicatives seulement.</p>' : '';
   const rows = m.contacts.map((c) => `<tr><td>${c.side}</td><td class="num">${fmt(c.f0)}–${fmt(c.f1)}</td><td class="num">${fmt(c.lateral)} %</td><td>${c.lateral < 0 ? 'croise' : 'de son côté'}</td>${back ? `<td class="num">${fmt(c.drop, 1)}°</td><td class="num">${fmt(c.fppa)}°</td>` : ''}</tr>`).join('');

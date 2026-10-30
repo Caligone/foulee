@@ -90,7 +90,7 @@ export function profileMetrics(allFrames, fps, heightM, dir) {
   for (let i = 0; i <= allFrames.length; i++) {
     const ok = i < allFrames.length && vis[i] >= 0.85;
     if (ok) { if (s0 < 0) s0 = i; gap = 0; if (i - s0 > best[1] - best[0]) best = [s0, i]; }
-    else if (s0 >= 0 && ++gap > 3) { s0 = -1; gap = 0; }
+    else if (s0 >= 0 && ++gap > Math.round(0.05 * fps)) { s0 = -1; gap = 0; }
   }
   const footsOk = best[1] - best[0] + 1 >= 0.7 * fps;
   const frames = footsOk ? allFrames.slice(best[0], best[1] + 1) : allFrames;
@@ -112,7 +112,8 @@ export function profileMetrics(allFrames, fps, heightM, dir) {
   const fx = FP.map((j) => LM.map((r) => r[j][0])), fy = FP.map((j) => LM.map((r) => r[j][1]));
   const dfx = fx.map(grad);
   const lowest = LM.map((_, t) => Math.max(...FP.map((_, i) => fy[i][t])));
-  const ground = lowest.map((_, t) => { let m = -1e9; for (let u = Math.max(0, t - 15); u <= Math.min(T - 1, t + 15); u++) m = Math.max(m, lowest[u]); return m; });
+  const gw = Math.round(0.25 * fps); // ±0,25 s : plus long qu'un pas, le sol est vu au moins une fois
+  const ground = lowest.map((_, t) => { let m = -1e9; for (let u = Math.max(0, t - gw); u <= Math.min(T - 1, t + gw); u++) m = Math.max(m, lowest[u]); return m; });
   const still = FP.map((_, i) => LM.map((_, t) => Math.abs(dfx[i][t]) < 0.5 * vx && fy[i][t] > ground[t] - 0.14 * legpx));
   const footlen = med(LM.flatMap((_, t) => [Math.abs(fx[2][t] - fx[0][t]), Math.abs(fx[3][t] - fx[1][t])]));
   // regroupement des pointes immobiles par emplacement au sol
@@ -216,7 +217,7 @@ export function frontalMetrics(frames, fps, view) {
   for (const q of [0, 1]) {
     const foot = LM.map((r) => mid([r[L.heL + q][0], r[L.heL + q][1]], [r[L.toL + q][0], r[L.toL + q][1]]));
     const sp = foot.map((p, t) => t ? norm(sub(p, foot[t - 1])) : 0);
-    const still = sp.map((v) => v < 0.07 * hipw);
+    const still = sp.map((v) => v * fps < 4.2 * hipw); // moins de 4,2 largeurs de bassin par seconde (0,07 par image à 60 i/s)
     for (let t = 1; t < T - 1; t++) {
       if (!still[t] || still[t - 1]) continue;
       let u = t; while (u + 1 < T && still[u + 1]) u++;
