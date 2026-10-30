@@ -70,6 +70,10 @@ canvas{max-width:100%;height:auto;border-radius:6px;background:#0f1418}
 /* rapport */
 .rep{display:flex;flex-direction:column;gap:44px}
 .rep section{display:flex;flex-direction:column;gap:14px}
+.toc{display:flex;flex-wrap:wrap;gap:4px 18px;font-size:.92rem}
+.toc a,.see{color:var(--accent);text-decoration:none;font-weight:600}
+.toc a:hover,.see:hover{text-decoration:underline}
+.rep section,.metric{scroll-margin-top:72px}
 .rep header{display:flex;flex-direction:column;gap:12px;border-bottom:2px solid var(--fg);padding-bottom:18px}
 .meta{display:flex;flex-wrap:wrap;gap:6px 20px;font-size:.92rem;color:var(--muted)}
 .meta b{color:var(--fg);font-weight:600}
@@ -94,8 +98,15 @@ input[type=range]{width:100%;padding:0}
 .mk{display:inline-block;width:11px;height:11px;border-radius:50%;vertical-align:-1px;margin-right:5px}
 .bandkey{display:inline-block;width:18px;height:10px;background:var(--band);vertical-align:-1px;margin-right:5px;border-radius:2px}
 .grp{margin-top:12px;border-bottom:1px solid var(--line);padding-bottom:4px}
-.metric{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:8px 22px;padding:14px 0;border-bottom:1px solid var(--line)}
-@media (max-width:760px){.metric{grid-template-columns:1fr}}
+.metric{border-bottom:1px solid var(--line)}
+.metric summary{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:8px 22px;padding:14px 0 10px;cursor:pointer;list-style:none}
+.metric summary::-webkit-details-marker{display:none}
+.metric summary:hover h4{color:var(--accent)}
+.metric h4::after{content:"";width:7px;height:7px;border:solid var(--muted);border-width:0 2px 2px 0;transform:rotate(-45deg);margin-left:2px;transition:transform .15s}
+.metric[open] h4::after{transform:rotate(45deg) translate(-2px,-2px)}
+.metric .more{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:4px 22px;padding:0 0 14px}
+.metric .more .ref{grid-column:2}.metric .more .rel{grid-column:2}
+@media (max-width:760px){.metric summary,.metric .more{grid-template-columns:1fr}.metric .more .ref,.metric .more .rel{grid-column:1}}
 .metric .name{display:flex;flex-direction:column;gap:5px;min-width:0}
 .metric h4{display:flex;gap:6px 14px;align-items:baseline;flex-wrap:wrap}
 .metric h4 .chip{font-size:.85rem}
@@ -109,9 +120,11 @@ input[type=range]{width:100%;padding:0}
 .dot{position:absolute;top:13px;width:18px;height:18px;margin-left:-9px;border-radius:50%;border:2px solid var(--surface)}
 .ticks{position:absolute;left:0;right:0;top:31px;display:flex;justify-content:space-between;font-size:.78rem;line-height:1;color:var(--muted)}
 .keyimgs{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:12px}
+@media (max-width:600px){.keyimgs{grid-template-columns:1fr 1fr}}
 .keyimgs figure{margin:0;display:flex;flex-direction:column;gap:6px}
 figcaption{font-size:.86rem;color:var(--muted)}
-.plan{display:flex;flex-direction:column;gap:12px}
+.plan{display:flex;flex-direction:column;gap:12px;counter-reset:prio}
+.plan h4::before{counter-increment:prio;content:counter(prio) ". ";color:var(--accent)}
 .plan article{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px 22px}
 @media (max-width:700px){.plan article{grid-template-columns:1fr}}
 .plan h4{grid-column:1/-1}
@@ -128,3 +141,15 @@ tr.clickable{cursor:pointer} tr.clickable:hover td{background:var(--bg)}
 .empty{color:var(--muted);padding:20px;border:1px dashed var(--line);border-radius:8px}
 .chart{width:100%;height:auto}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
+/* impression : le rapport seul, sans navigation ni lecteur */
+@media print{
+  :root{--bg:#fff;--surface:#fff;--fg:#000;--muted:#444;--line:#ccc}
+  .bar,.noprint{display:none!important}
+  main{padding:0;max-width:none}
+  .rep{gap:24px}
+  .plan article,.metric,figure,.prio li,tr{break-inside:avoid}
+  h2,h3{break-after:avoid}
+  .see,.hint{display:none}
+  .metric h4::after{display:none}
+  a{color:inherit}
+}

@@ -104,21 +104,25 @@ async function renderReport(a) {
   R.innerHTML = `<div class="rep">
   <header>
     <h1>${esc(title)}</h1>
-    <div class="meta"><span>Vidéo <b>${esc(a.videoName)}</b></span><span><b>${a.size[0]}×${a.size[1]} · ${fmt(a.fps, 2)} i/s · ${fmt(a.duration, 0)} s</b></span>
-      <span>Coureur <b>${fmt(a.height * 100)} cm${a.weight ? ` · ${fmt(a.weight)} kg` : ''}</b></span><span>Modèle <b>${a.model} (${a.delegate})</b></span>${a.decoder ? `<span>Décodage <b>${a.decoder === 'webcodecs' ? 'WebCodecs' : 'sauts'}</b></span>` : ''}
-      <span>Analysé le <b>${new Date(a.date).toLocaleString('fr-FR')}</b></span></div>
-    <div class="actions"><button class="btn small" id="exp">Exporter (JSON)</button><button class="btn ghost" id="del">Supprimer</button><button class="btn ghost" id="again">Nouvelle analyse</button></div>
+    <div class="meta"><span>Coureur <b>${fmt(a.height * 100)} cm${a.weight ? ` · ${fmt(a.weight)} kg` : ''}</b></span><span>Vidéo <b>${esc(a.videoName)}</b></span><span><b>${a.passes.length}</b> passage${a.passes.length > 1 ? 's' : ''} repéré${a.passes.length > 1 ? 's' : ''}</span></div>
+    <nav class="toc noprint" aria-label="Sommaire du rapport"><a href="#bref">En bref</a>${plan.length ? '<a href="#plan">Quoi travailler</a>' : ''}<a href="#images">Images clés</a><a href="#mesures">Mesures</a>${fr.length ? '<a href="#frontal">Face / dos</a>' : ''}<a href="#lecteur">Lecteur</a><a href="#methode">Méthode</a></nav>
+    <div class="actions noprint"><button class="btn small" id="print">Imprimer ou PDF</button><button class="btn ghost" id="exp">Exporter (JSON)</button><button class="btn ghost" id="again">Nouvelle analyse</button></div>
     ${a.fpsNote ? `<p class="note">${esc(a.fpsNote)}</p>` : ''}${a.fps < 50 ? '<p class="note">Moins de 50 images/s : temps de contact et de vol imprécis (± 1 image = ' + fmt(1000 / a.fps) + ' ms).</p>' : ''}
   </header>
-  <section><h2>En bref</h2><ul class="prio">${cards.map((c) => `<li><span class="chip ${STATUS[c.st][0]}">${STATUS[c.st][1]}</span><h4>${c.t}</h4><p>${c.d}</p></li>`).join('')}</ul></section>
-  <section><h2>Passages repérés</h2><div class="tablewrap"><table><thead><tr><th>Passage</th><th>Images analysées</th><th class="num">Allure</th><th class="num">Cadence</th><th class="num">Pas</th><th class="num">Contact · vol</th><th>Appuis</th></tr></thead><tbody>${a.passes.map((p, i) => {
+  <section id="bref"><h2>En bref</h2><ul class="prio">${cards.map((c) => `<li><span class="chip ${STATUS[c.st][0]}">${STATUS[c.st][1]}</span><h4>${c.t}</h4><p>${c.d}${c.href ? ` <a href="${c.href}" class="see">Voir la mesure</a>` : ''}</p></li>`).join('')}</ul></section>
+  ${plan.length ? `<section id="plan"><h2>Quoi travailler</h2><div class="plan">${plan.map((p) => `<article><h4>${p.t}</h4><ul>${p.li.map((x) => `<li>${x}</li>`).join('')}</ul><p class="why">${p.why}</p></article>`).join('')}</div></section>` : ''}
+  ${prev ? compareHTML(a, prev) : ''}
+  <section id="images"><h2>Images clés</h2><div class="keyimgs" id="keys"></div></section>
+  <section><h2>Passages et rythme</h2><div class="tablewrap"><table><thead><tr><th>Passage</th><th>Images analysées</th><th class="num">Allure</th><th class="num">Cadence</th><th class="num">Pas</th><th class="num">Contact · vol</th><th>Appuis</th></tr></thead><tbody>${a.passes.map((p, i) => {
     const m = p.metrics || {}, run = p.kind === 'profil' && prof.includes(p);
     const steps = m.error ? 'non exploitable' : p.kind === 'profil' ? (!m.footsOk ? 'pieds peu visibles, ignoré' : m.nSteps < 2 ? `${m.nSteps} : trop peu, ignoré` : `${m.nSteps}`) : `${m.contacts?.length ?? 0}`;
     return `<tr><td><b>${i + 1}. ${KIND[p.kind]}</b> <span class="muted">${fmt(p.t0, 1)}–${fmt(p.t1, 1)} s</span></td><td>${p.frames.filter((f) => f.lm).length}/${p.frames.length}</td>
       <td class="num">${run ? `<span class="big">${pace(m.pace)}</span> /km` : '—'}</td><td class="num">${run ? `<span class="big">${fmt(m.cadence)}</span> pas/min` : '—'}</td>
       <td class="num">${run ? `${fmt(m.step_len, 2)} m` : '—'}</td><td class="num">${run ? `${fmt(m.contact_ms)} · ${fmt(m.flight_ms)} ms` : '—'}</td><td>${steps}</td></tr>`;
   }).join('')}</tbody></table></div></section>
-  <section><h2>Lecteur image par image</h2><div class="player">
+  ${prof.length ? `<section id="mesures"><h2>Mesures de profil</h2><p class="muted hint">Clique sur une mesure pour voir le repère publié et la fiabilité.</p>${gaugesHTML(prof)}</section>` : '<section id="mesures"><h2>Mesures de profil</h2><p class="empty">Aucun passage de profil exploitable. Il faut au moins 1 s de course de profil, pieds visibles en entier, téléphone fixe à 3–4 m de la ligne de course. <a href="#" class="see" data-view="new">Revoir comment filmer</a></p></section>'}
+  ${fr.length ? `<section id="frontal"><h2>Vue de face / de dos</h2>${fr.map((p) => frontalHTML(p, a)).join('')}</section>` : ''}
+  <section id="lecteur" class="noprint"><h2>Lecteur image par image</h2><div class="player">
     <canvas id="pc" width="576" height="576" aria-label="Image analysée avec le squelette"></canvas>
     <div class="pcontrols">
       <label>Passage<select id="psel">${a.passes.map((p, i) => `<option value="${i}">${i + 1}. ${KIND[p.kind]} (${fmt(p.t0, 1)}–${fmt(p.t1, 1)} s)</option>`).join('')}</select></label>
@@ -128,17 +132,23 @@ async function renderReport(a) {
       <div class="readout" id="pread"></div>
       <p class="muted">Couleurs : jaune = côté que le modèle étiquette gauche, bleu = droit. De profil, le modèle confond parfois les deux jambes.</p>
     </div></div></section>
-  ${prof.length ? `<section><h2>Mesures de profil</h2>${gaugesHTML(prof)}</section>` : '<section><h2>Mesures de profil</h2><p class="empty">Aucun passage de profil exploitable dans cette vidéo.</p></section>'}
-  <section><h2>Images clés</h2><div class="keyimgs" id="keys"></div></section>
-  ${fr.length ? `<section><h2>Vue de face / de dos</h2>${fr.map((p) => frontalHTML(p, a)).join('')}</section>` : ''}
-  ${plan.length ? `<section><h2>Plan d'action</h2><div class="plan">${plan.map((p) => `<article><h4>${p.t}</h4><ul>${p.li.map((x) => `<li>${x}</li>`).join('')}</ul><p class="why">${p.why}</p></article>`).join('')}</div></section>` : ''}
-  ${prev ? compareHTML(a, prev) : ''}
-  <section><h2>Méthode et limites</h2>
+  <section id="methode"><h2>Méthode et limites</h2>
     <p>Le coureur est repéré par soustraction du fond (caméra fixe), recadré puis analysé image par image par MediaPipe Pose (33 points). Un appui de profil est détecté quand la pointe du pied reste immobile dans l'image ; contact initial = arrêt du talon, décollage = départ de la pointe. L'échelle vient de la longueur cuisse + jambe estimée à 49,1 % de la taille (tables de Winter). Erreur typique des angles de profil : 2 à 5° ; le modèle est moins précis sur le pied et quand les jambes se croisent. Les repères sont pour la plupart des moyennes de groupe mesurées en 3D, pas des seuils de blessure : il n'existe pas de seuil cinématique validé (Souza 2016).</p>
-    <p class="muted">Sources : Malisoux et al. 2023 (OJSM) ; Heiderscheit et al. 2011 (MSSE) ; Lieberman et al. 2015 (J Exp Biol) ; Altman & Davis 2012 (Gait Posture) ; Barrett et al. 2023 (IJSPT) ; Bramah et al. 2018 (AJSM) ; Teng & Powers 2014 (JOSPT) ; Souza 2016 (IJSPT) ; Meardon & Derrick 2014 (J Biomech) ; Arellano & Kram 2014 (J Exp Biol) ; Dingenen et al. 2018 (Phys Ther Sport).</p></section>
+    <p class="muted">Sources : Malisoux et al. 2023 (OJSM) ; Heiderscheit et al. 2011 (MSSE) ; Lieberman et al. 2015 (J Exp Biol) ; Altman & Davis 2012 (Gait Posture) ; Barrett et al. 2023 (IJSPT) ; Bramah et al. 2018 (AJSM) ; Teng & Powers 2014 (JOSPT) ; Souza 2016 (IJSPT) ; Meardon & Derrick 2014 (J Biomech) ; Arellano & Kram 2014 (J Exp Biol) ; Dingenen et al. 2018 (Phys Ther Sport).</p>
+    <p class="muted">Détails techniques : ${a.size[0]}×${a.size[1]}, ${fmt(a.fps, 2)} i/s, ${fmt(a.duration, 0)} s · modèle ${a.model} (${a.delegate})${a.decoder ? ` · décodage ${a.decoder === 'webcodecs' ? 'WebCodecs' : 'par sauts'}` : ''} · analysé le ${new Date(a.date).toLocaleString('fr-FR')}</p>
+    <div class="actions noprint"><button class="btn ghost" id="del">Supprimer cette analyse</button></div></section>
   </div>`;
   $('#exp').onclick = () => exportJSON(a);
-  $('#del').onclick = async () => { if (a.unsaved) return show('new'); $('#del').textContent = 'Confirmer la suppression'; $('#del').onclick = async () => { await deleteAnalysis(a.id); show('history'); }; };
+  $('#print').onclick = () => { R.querySelectorAll('details.metric').forEach((x) => { x.open = true; }); print(); };
+  // liens internes : défilement doux, et la mesure visée s'ouvre
+  R.querySelectorAll('a[href^="#"]').forEach((l) => l.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (l.dataset.view) return show(l.dataset.view);
+    const t = R.querySelector(l.getAttribute('href')); if (!t) return;
+    if (t.tagName === 'DETAILS') t.open = true;
+    t.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+  }));
+  $('#del').onclick = async () => { if (a.unsaved) return show('new'); $('#del').textContent = 'Confirmer : supprimer définitivement'; $('#del').onclick = async () => { await deleteAnalysis(a.id); show('history'); }; };
   $('#again').onclick = () => show('new');
   setupPlayer(a);
   await renderKeys(a, prof, fr);

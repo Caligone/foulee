@@ -61,7 +61,7 @@ export function synthesize(passes) {
   if (prof.length) {
     const sh = worst('shank_deg'), hh = worst('heel_hip_pct');
     if (sh > 5 || hh > 15) {
-      cards.push({ st: sh > 10 || hh > 25 ? 'bad' : 'warn', t: 'Le pied se pose devant le bassin',
+      cards.push({ st: sh > 10 || hh > 25 ? 'bad' : 'warn', href: '#m-shank_deg', t: 'Le pied se pose devant le bassin',
         d: `Tibia incliné jusqu'à ${fmt(sh)}° vers l'avant au contact et talon jusqu'à ${fmt(hh)} % de la longueur de jambe devant le bassin. C'est le signe d'une foulée qui freine (overstriding).` });
       const cad = slow?.cadence ?? prof[0].metrics.cadence;
       plan.push({ t: `Monter la cadence de 5 à 7 % en footing (≈ ${fmt(cad * 1.05)} à ${fmt(cad * 1.07)} pas/min)`,
@@ -70,24 +70,24 @@ export function synthesize(passes) {
     }
     const tr = Math.min(...prof.map((p) => p.metrics.trunk));
     if (tr < 2) {
-      cards.push({ st: 'warn', t: 'Buste très droit', d: `Inclinaison mesurée jusqu'à ${fmt(tr)}° (l'inclinaison habituelle est d'environ 7° vers l'avant). Combiné au pied posé devant, cela favorise le freinage.` });
+      cards.push({ st: 'warn', href: '#m-trunk', t: 'Buste très droit', d: `Inclinaison mesurée jusqu'à ${fmt(tr)}° (l'inclinaison habituelle est d'environ 7° vers l'avant). Combiné au pied posé devant, cela favorise le freinage.` });
       plan.push({ t: 'Courir « grand et légèrement penché »', li: ['Légère inclinaison vers l\'avant venue des chevilles, pas de la taille.', 'Surtout aux allures lentes ; viser 5 à 10° sur la prochaine vidéo.'],
         why: 'Un buste plus incliné diminue la contrainte fémoro-patellaire ; un buste plus droit l\'augmente (Teng & Powers 2014). Contrepartie : plus de travail des extenseurs de hanche.' });
     }
     const vo = Math.max(...prof.map((p) => p.metrics.vosc_cm));
-    if (vo > 10) cards.push({ st: 'warn', t: 'Rebond vertical élevé', d: `Oscillation du bassin jusqu'à ${fmt(vo, 1)} cm (repère : 8 ± 1,3 cm).` });
+    if (vo > 10) cards.push({ st: 'warn', href: '#m-vosc_cm', t: 'Rebond vertical élevé', d: `Oscillation du bassin jusqu'à ${fmt(vo, 1)} cm (repère : 8 ± 1,3 cm).` });
   }
   for (const p of fr) {
     const m = p.metrics;
     if (m.crossings > 0) {
-      cards.push({ st: 'warn', t: 'Appuis presque sur une ligne', d: `${m.crossings} appui(s) sur ${m.contacts.length} croisent la ligne médiane du bassin${m.obliqueWarn ? ' (vue de biais : mesure indicative)' : ''}.` });
+      cards.push({ st: 'warn', href: '#frontal', t: 'Appuis presque sur une ligne', d: `${m.crossings} appui(s) sur ${m.contacts.length} croisent la ligne médiane du bassin${m.obliqueWarn ? ' (vue de biais : mesure indicative)' : ''}.` });
       plan.push({ t: 'Élargir un peu l\'appui et renforcer les hanches', li: ['Deux fois par semaine : marche latérale avec élastique, gainage latéral, montée de marche sur une jambe, pont fessier sur une jambe.', 'En footing, quelques lignes droites avec un pied de chaque côté d\'une ligne au sol.'],
         why: 'Un pas plus large de 5 % de la longueur de jambe a réduit la contrainte estimée sur le tibia, y compris chez des coureurs qui croisent (Meardon & Derrick 2014). Le renforcement seul ne change pas forcément la mécanique : à combiner au travail de placement.' });
     }
     if (p.kind === 'dos' && !m.obliqueWarn) {
       const d = Math.max(m.drop.gauche ?? -9, m.drop.droite ?? -9);
       if (d > 5) {
-        cards.push({ st: d > 7 ? 'bad' : 'warn', t: 'Chute du bassin en appui', d: `Jusqu'à ${fmt(d, 1)}° (sains : 3,7 ± 1,9°, blessés : 6,4 ± 2,1°, Bramah 2018).` });
+        cards.push({ st: d > 7 ? 'bad' : 'warn', href: '#frontal', t: 'Chute du bassin en appui', d: `Jusqu'à ${fmt(d, 1)}° (sains : 3,7 ± 1,9°, blessés : 6,4 ± 2,1°, Bramah 2018).` });
         plan.push({ t: 'Contrôle du bassin', li: ['Renforcement des abducteurs de hanche (gainage latéral, pont sur une jambe, step-down).', 'Courir quelques minutes devant un repère (vitrine, vidéo) en gardant le bassin horizontal.'],
           why: 'La chute controlatérale du bassin est le facteur le plus associé aux blessures courantes dans Bramah et al. (2018).' });
       }
@@ -122,15 +122,16 @@ export function gaugesHTML(prof) {
       const rk = { heel_hip_pct: 'heel_hip_cm' }[k] ?? k;
       const ranges = prof.map((p) => p.metrics.ranges?.[rk]).filter(Boolean);
       const cm = k === 'heel_hip_pct' ? ` <span>soit ${prof.map((p) => fmt(p.metrics.heel_hip_cm)).join(' · ')} cm</span>` : '';
-      h += `<div class="metric"><div class="name"><h4>${R.label} <span class="chip ${STATUS[st][0]}">${STATUS[st][1]}</span></h4>
-        <div class="vals">${vals.map((v) => fmt(v, d)).join(' · ')} ${R.unit}${extra}${cm}</div>
-        ${ranges.length && k !== 'heel_hip_pct' ? `<div class="rel">Appuis : ${ranges.map((r) => `${fmt(r[0])}–${fmt(r[1])}`).join(' · ')}</div>` : ''}
-        <div class="rel">Fiabilité ${R.rel}</div></div>
-        <div><div class="gauge" role="img" aria-label="${R.label}"><div class="track"></div>
+      // une ligne par mesure ; le détail (repère, fiabilité, appuis) ne s'ouvre d'office que pour ce qui sort de la norme
+      h += `<details class="metric" id="m-${k}"${st !== 'ok' ? ' open' : ''}><summary>
+        <div class="name"><h4>${R.label} <span class="chip ${STATUS[st][0]}">${STATUS[st][1]}</span></h4>
+        <div class="vals">${vals.map((v) => fmt(v, d)).join(' · ')} ${R.unit}${extra}${cm}</div></div>
+        <div class="gauge" role="img" aria-label="${R.label}"><div class="track"></div>
         ${R.band ? `<div class="bandz" style="left:${pos(R.band[0], R.sc)}%;width:${pos(R.band[1], R.sc) - pos(R.band[0], R.sc)}%"></div>` : ''}
         ${vals.map((v, i) => Number.isFinite(v) ? `<div class="dot" style="left:${pos(v, R.sc)}%;background:${col[i % 4]}"></div>` : '').join('')}
-        <div class="ticks"><span>${fmt(R.sc[0])}</span><span>${fmt(R.sc[1])} ${R.unit}</span></div></div>
-        <p class="ref">${R.ref}</p></div></div>`;
+        <div class="ticks"><span>${fmt(R.sc[0])}</span><span>${fmt(R.sc[1])} ${R.unit}</span></div></div></summary>
+        <div class="more"><p class="ref">${R.ref}</p>
+        <p class="rel">Fiabilité ${R.rel}${ranges.length && k !== 'heel_hip_pct' ? ` · appuis : ${ranges.map((r) => `${fmt(r[0])}–${fmt(r[1])}`).join(' · ')}` : ''}</p></div></details>`;
     }
   }
   return h;
