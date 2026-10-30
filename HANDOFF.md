@@ -1,4 +1,4 @@
-Tu reprends **Foulée**, une app web d'analyse de foulée à partir d'une vidéo de course, 100 % locale dans le navigateur. Le dépôt git est dans `foulee/` (décompressé depuis `foulee-repo.zip`) : un commit sur `main`, à mon nom. Le dépôt GitHub `Caligone/foulee` existe, privé et vide.
+Tu reprends **Foulée**, une app web d'analyse de foulée à partir d'une vidéo de course, 100 % locale dans le navigateur. Dépôt GitHub `Caligone/foulee` (privé). **Tester dans Chrome** : le navigateur par défaut de la machine est Firefox Developer Edition, plus lent sur le HEVC.
 
 ## Le projet
 - Vanilla JS en modules ES, **aucune étape de build**. MediaPipe Tasks Vision 0.10.14 (PoseLandmarker) en WebAssembly. Interface en français.
@@ -10,23 +10,18 @@ Tu reprends **Foulée**, une app web d'analyse de foulée à partir d'une vidéo
 - `js/report.js` : repères publiés (Malisoux 2023, Heiderscheit 2011, Lieberman 2015, Altman & Davis 2012, Barrett 2023, Bramah 2018, Teng & Powers 2014, Souza 2016…), statuts, synthèse, plan d'action, dessins.
 - `js/store.js` : historique dans IndexedDB.
 
+## Fait le 30/10/2026
+- Poussé sur `origin/main`. Téléchargement de `vendor/` OK, avec en plus les polices et mp4box. Modèles officiels `full` et `heavy` OK dans Chrome (GPU).
+- **Accès aux images** : nouveau `js/frames.js`. WebCodecs + mp4box si le navigateur décode le codec, ce qui donne des images exactes, l'horodatage réel, la cadence lue dans le conteneur et la rotation de la piste appliquée. Sinon, repli sur les sauts dans `<video>` (Firefox + HEVC : pas de HEVC en WebCodecs, ~270 ms par saut).
+- **Firefox** : décalait les sous-zones prises par `drawImage(video, sx, sy…)`. On copie maintenant l'image entière, puis on recadre. L'estimation des i/s tient compte des rappels manqués par `requestVideoFrameCallback`.
+- UI/UX : marqueurs « vibe code » retirés (petit libellé au-dessus des titres, majuscules à chasse fixe, pastilles, grille de cartes). Polices servies en local.
+
 ## À faire, dans l'ordre
-1. **Pousser** : `git remote add origin git@github.com:Caligone/foulee.git && git push -u origin main`.
-2. **Premier vrai test** : `python3 serveur.py`, puis analyser `IMG_0001.MOV` (iPhone, HEVC, 1080p, 59,94 i/s). Deux points n'ont **jamais été testés** :
-   - le téléchargement automatique de `vendor/` ;
-   - les **modèles officiels Google**. Les tests ont été faits avec le modèle full de l'ancienne API MediaPipe, ré-empaqueté en `.task`, dans Chromium sans tête.
-   
-   Vérifier `full` et `heavy`, et le décodage HEVC dans Chrome et dans Safari sur macOS.
-3. **Non-régression** : comparer aux valeurs obtenues sur cette vidéo.
-   - Passage 1 de profil (~7–11 s, 3,3 m/s) : cadence 165–172, contact ~284 ms, tibia 9–11°, talon devant le bassin 12–16 cm, pied 16–22° (talon).
-   - Passage 2 de profil (~48,8–50,4 s, 2,6 m/s) : contact ~317 ms, tibia ~17°, talon devant le bassin 31–33 cm, buste ≈ −5°.
-   - Arrivée de face (~49,8–51,6 s), signalée « de biais ».
-   
-   Ajouter un test Node qui injecte un JSON de points de pose dans `profileMetrics` / `frontalMetrics` et vérifie ces plages.
-4. **Robustesse du scan**, réglé sur une seule vidéo : seuils (différence 32, masque d'agitation 0,12, classification `lat` / `grow`). La lecture ×4 saute des images selon la machine. Retirer les champs de débogage renvoyés par `scanVideo` (`cands`, `freq`, `times`).
-5. **Vue de dos** : jamais testée faute de vidéo. Je fournirai une vidéo filmée de dos.
-6. **Interface en anglais** (i18n simple FR/EN) avant de passer le dépôt en public.
-7. En option, **GitHub Pages** : l'app est statique et retombe sur le CDN quand `vendor/` est absent. Vérifier le CORS des modèles hébergés sur storage.googleapis.com.
+1. **Tester d'autres vidéos** (prévu le 31/10) : portrait (rotation 90/270 jamais testée), H.264, 120/240 i/s, Safari.
+2. **Vérifier que WebCodecs donne le même résultat d'un lancement à l'autre** (deux analyses `full` dans Chrome), puis écrire le test Node de non-régression (`profileMetrics` / `frontalMetrics` sur un JSON de points). Plages : P1 cadence 165–172, contact ~284 ms, tibia 9–11°, talon devant le bassin 12–16 cm, pied 16–22°.
+3. **Passage 2 avec `heavy`** : 1 seul appui détecté, mesures publiées quand même. Les signaler comme non fiables sous 2 ou 3 appuis.
+4. Robustesse du scan : seuils (différence 32, masque d'agitation 0,12, `lat` / `grow`). Retirer les champs de débogage de `scanVideo` (`cands`, `freq`, `times`).
+5. Vue de dos (vidéo à venir), i18n FR/EN, GitHub Pages (CORS des modèles).
 
 ## Contraintes
 - La vidéo ne doit jamais quitter la machine.

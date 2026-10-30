@@ -17,7 +17,9 @@ PORT = int(args[0]) if args else 8777
 MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14'
 MODELS = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker'
 FONTS = 'https://cdn.jsdelivr.net/npm/@fontsource'
+MP4BOX = 'https://cdn.jsdelivr.net/npm/mp4box@2.4.1/dist'
 DEPS = {
+    **{f'vendor/mp4box/{f}': f'{MP4BOX}/{f}' for f in ['mp4box.all.mjs', 'styp-9TIZZDLN.mjs', 'rolldown-runtime-w6R9maHv.mjs']},
     **{f'vendor/fonts/{f}.woff2': f'{FONTS}/{pkg}@5.2.5/files/{f}.woff2' for pkg, f in [
         ('barlow-condensed', 'barlow-condensed-latin-600-normal'), ('barlow-condensed', 'barlow-condensed-latin-700-normal'),
         ('source-sans-3', 'source-sans-3-latin-400-normal'), ('source-sans-3', 'source-sans-3-latin-600-normal')]},

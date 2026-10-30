@@ -75,23 +75,31 @@ export async function estimateFps(v) {
     setTimeout(res, 2500);
   });
   v.pause();
-  const d = []; for (let i = 1; i < times.length; i++) { const x = times[i] - times[i - 1]; if (x > 0.001) d.push(x); }
+  // le premier écart (juste après le saut) est souvent tronqué
+  let d = []; for (let i = 2; i < times.length; i++) { const x = times[i] - times[i - 1]; if (x > 0.001) d.push(x); }
   if (d.length < 5) return null;
   d.sort((a, b) => a - b);
-  const fps = 1 / d[Math.floor(d.length * 0.25)]; // quartile bas : ignore les images sautées pendant la lecture
+  d = d.filter((x) => x > 0.3 * d[d.length >> 1]);
+  // Firefox n'appelle pas le rappel à chaque image : les écarts valent 1, 2, 3… périodes.
+  // Le plus petit sert de base, puis chaque écart est ramené à une période (médiane).
+  const ps = d.map((x) => x / Math.round(x / d[0])).sort((a, b) => a - b);
+  const fps = 1 / ps[ps.length >> 1];
   return STD_FPS.reduce((b, s) => Math.abs(s - fps) < Math.abs(b - fps) ? s : b, STD_FPS[0]);
 }
 
 // ---------- Fond médian + détection du coureur (basse résolution) ----------
 const LW = 320; // largeur de travail pour la détection de mouvement
 
-export async function scanVideo(v, fps, onProgress) {
+export async function scanVideo(v, fps, onProgress, source) {
   const W = v.videoWidth, H = v.videoHeight, LH = Math.round(H * LW / W);
   const cv = new OffscreenCanvas(LW, LH), cx = cv.getContext('2d', { willReadFrequently: true });
   const step = 0.1;
   const frames = [], times = [];
-  const grab = (t) => { cx.drawImage(v, 0, 0, LW, LH); frames.push(cx.getImageData(0, 0, LW, LH).data.slice()); times.push(t); };
-  if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
+  const grab = (t, src = v) => { cx.drawImage(src, 0, 0, LW, LH); frames.push(cx.getImageData(0, 0, LW, LH).data.slice()); times.push(t); };
+  if (source?.kind === 'webcodecs') {
+    // décodage de toutes les images, une prélevée toutes les 0,1 s : même résultat à chaque lancement
+    for await (const { t, src } of source.frames(0, v.duration, step)) { grab(t, src); onProgress?.(t / v.duration); }
+  } else if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
     // lecture accélérée : on prélève une image tous les 0,1 s de temps vidéo (bien plus rapide que des sauts)
     await seek(v, 0);
     await new Promise((res) => {
@@ -268,21 +276,23 @@ export function findPassages(boxes, minDur = 1.0) {
 }
 
 // ---------- Pose image par image sur un passage ----------
-export async function poseOnPassage(v, pose, passage, scan, fps, onFrame) {
+export async function poseOnPassage(v, pose, passage, scan, fps, onFrame, source) {
   const W = v.videoWidth, H = v.videoHeight;
   const IN = 512;
   const crop = new OffscreenCanvas(IN, IN), cc = crop.getContext('2d');
   const thumb = new OffscreenCanvas(384, 384), tc = thumb.getContext('2d');
-  const f0 = Math.ceil(passage.t0 * fps), f1 = Math.floor(passage.t1 * fps);
+  // Firefox décale les sous-zones prises directement sur une vidéo décodée par le GPU :
+  // on copie l'image entière, puis on recadre depuis cette copie
+  const full = new OffscreenCanvas(W, H), fc = full.getContext('2d');
+  const n = Math.max(1, Math.round((passage.t1 - passage.t0) * fps));
   const boxAt = (t) => {
     let best = null;
     for (const b of scan.boxes) if (b.ok && (!best || Math.abs(b.t - t) < Math.abs(best.t - t))) best = b;
     return best;
   };
   let track = null; const frames = [];
-  for (let f = f0; f <= f1; f++) {
-    const t = (f + 0.5) / fps;
-    await seek(v, t);
+  for await (const { f, t, src } of source.frames(passage.t0, passage.t1)) {
+    fc.drawImage(src, 0, 0);
     const b = boxAt(t);
     let cx, cy, side;
     const bh = b ? (b.y1 - b.y0) : H / 4;
@@ -293,7 +303,7 @@ export async function poseOnPassage(v, pose, passage, scan, fps, onFrame) {
     } else { cx = b ? b.cx : W / 2; cy = b ? (b.y0 + b.y1) / 2 : H / 2; side = 1.6 * bh; }
     side = Math.max(160, Math.min(side, H));
     const X0 = Math.max(0, Math.min(W - side, cx - side / 2)), Y0 = Math.max(0, Math.min(H - side, cy - side / 2));
-    cc.drawImage(v, X0, Y0, side, side, 0, 0, IN, IN);
+    cc.drawImage(full, X0, Y0, side, side, 0, 0, IN, IN);
     const r = pose.detect(crop);
     let lm = null;
     if (r.landmarks && r.landmarks[0]) {
@@ -307,10 +317,10 @@ export async function poseOnPassage(v, pose, passage, scan, fps, onFrame) {
     // vignette pour le lecteur (centrée sur le coureur)
     const ts = Math.min(H, Math.max(200, (track?.side ?? side) * 1.05));
     const TX = Math.max(0, Math.min(W - ts, (track?.cx ?? cx) - ts / 2)), TY = Math.max(0, Math.min(H - ts, (track?.cy ?? cy) - ts / 2));
-    tc.drawImage(v, TX, TY, ts, ts, 0, 0, 384, 384);
+    tc.drawImage(full, TX, TY, ts, ts, 0, 0, 384, 384);
     const blobImg = await thumb.convertToBlob({ type: 'image/jpeg', quality: 0.78 });
     frames.push({ f, lm, thumb: blobImg, view: [TX, TY, ts] });
-    onFrame?.((f - f0 + 1) / (f1 - f0 + 1), crop, lm, X0, Y0, side);
+    onFrame?.(frames.length / n, crop, lm, X0, Y0, side);
   }
   return frames;
 }

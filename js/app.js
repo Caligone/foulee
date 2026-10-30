@@ -1,4 +1,5 @@
-import { loadPose, openVideo, estimateFps, scanVideo, findPassages, poseOnPassage } from './engine.js';
+import { loadPose, openVideo, scanVideo, findPassages, poseOnPassage } from './engine.js';
+import { openFrames } from './frames.js';
 import { profileMetrics, frontalMetrics } from './metrics.js';
 import { saveAnalysis, listAnalyses, getAnalysis, deleteAnalysis } from './store.js';
 import { synthesize, gaugesHTML, drawFrame, drawContact, drawFrontal, fmt, pace, REFS, STATUS } from './report.js';
@@ -45,15 +46,18 @@ async function run() {
   try { localStorage.setItem('foulee-profile', JSON.stringify({ h: $('#height').value, w: $('#weight').value })); } catch {}
   stepUI(0, ''); bar(0);
   const v = await openVideo(file);
-  let fps = Number($('#fps').value) || await estimateFps(v);
+  const source = await openFrames(file, v);
+  let fps = Number($('#fps').value) || source.fps;
   let fpsNote = '';
   if (!fps) { fps = 30; fpsNote = 'Cadence d\'images non détectée : 30 i/s supposées. Renseigne-la si elle est différente.'; }
-  stepUI(1, `${v.videoWidth}×${v.videoHeight}, ${fmt(v.duration, 1)} s, ${fmt(fps, 2)} i/s`);
+  source.fps = fps;
+  if (source.kind === 'seek') fpsNote += (fpsNote ? ' ' : '') + 'Ce navigateur ne décode pas cette vidéo image par image (WebCodecs) : analyse plus lente et temps moins précis. Chrome ou Safari font mieux, ou exporte la vidéo en MP4 H.264.';
+  stepUI(1, `${v.videoWidth}×${v.videoHeight}, ${fmt(v.duration, 1)} s, ${fmt(fps, 2)} i/s${source.kind === 'seek' ? ' · décodage lent (sauts)' : ''}`);
   const variant = params.get('model') ? 'test' : $('#model').value;
   poseCache[variant] ??= await loadPose(variant === 'test' ? 'full' : variant, params.get('model'), (m) => { $('#run-msg').textContent = m; });
   const pose = poseCache[variant];
   stepUI(2, 'Lecture accélérée de la vidéo pour repérer le coureur…');
-  const scan = await scanVideo(v, fps, bar);
+  const scan = await scanVideo(v, fps, bar, source);
   const passages = findPassages(scan.boxes);
   if (!passages.length) throw new Error("Aucun passage de coureur exploitable n'a été repéré. Vérifie que le téléphone est immobile et que tu restes au moins 1 s dans le champ.");
   stepUI(3, `${passages.length} passage(s) : ${passages.map((p) => p.kind).join(', ')}`);
@@ -69,7 +73,7 @@ async function run() {
       if (done % 2) return;
       live.drawImage(crop, 0, 0, 384, 384);
       if (lm) { live.fillStyle = '#f0b93a'; for (const q of lm.slice(11)) { live.beginPath(); live.arc((q[0] - X0) / side * 384, (q[1] - Y0) / side * 384, 3, 0, 7); live.fill(); } }
-    });
+    }, source);
     passes.push({ kind: p.kind, dir: p.dir, t0: p.t0, t1: p.t1, frames });
   }
   stepUI(4, '');
@@ -79,7 +83,7 @@ async function run() {
   }
   const a = { id: crypto.randomUUID?.() ?? String(Date.now()), date: Date.now(), videoDate: file.lastModified, label: $('#label').value.trim(),
     videoName: file.name, height, weight, fps, fpsNote, duration: v.duration, size: [v.videoWidth, v.videoHeight],
-    model: pose.modelPath.includes('heavy') ? 'heavy' : 'full', delegate: pose.delegate, passes };
+    model: pose.modelPath.includes('heavy') ? 'heavy' : 'full', delegate: pose.delegate, decoder: source.kind, passes };
   URL.revokeObjectURL(v.src);
   try { await saveAnalysis(a); } catch (e) { console.warn('sauvegarde impossible', e); a.unsaved = true; }
   window.__lastAnalysis = a;
@@ -101,7 +105,7 @@ async function renderReport(a) {
   <header>
     <h1>${esc(title)}</h1>
     <div class="meta"><span>Vidéo <b>${esc(a.videoName)}</b></span><span><b>${a.size[0]}×${a.size[1]} · ${fmt(a.fps, 2)} i/s · ${fmt(a.duration, 0)} s</b></span>
-      <span>Coureur <b>${fmt(a.height * 100)} cm${a.weight ? ` · ${fmt(a.weight)} kg` : ''}</b></span><span>Modèle <b>${a.model} (${a.delegate})</b></span>
+      <span>Coureur <b>${fmt(a.height * 100)} cm${a.weight ? ` · ${fmt(a.weight)} kg` : ''}</b></span><span>Modèle <b>${a.model} (${a.delegate})</b></span>${a.decoder ? `<span>Décodage <b>${a.decoder === 'webcodecs' ? 'WebCodecs' : 'sauts'}</b></span>` : ''}
       <span>Analysé le <b>${new Date(a.date).toLocaleString('fr-FR')}</b></span></div>
     <div class="actions"><button class="btn small" id="exp">Exporter (JSON)</button><button class="btn ghost" id="del">Supprimer</button><button class="btn ghost" id="again">Nouvelle analyse</button></div>
     ${a.fpsNote ? `<p class="note">${esc(a.fpsNote)}</p>` : ''}${a.fps < 50 ? '<p class="note">Moins de 50 images/s : temps de contact et de vol imprécis (± 1 image = ' + fmt(1000 / a.fps) + ' ms).</p>' : ''}
