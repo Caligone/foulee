@@ -4,3 +4,6 @@ Copyright 2026 Foulée contributors
 Ce produit utilise MediaPipe Tasks Vision (https://github.com/google-ai-edge/mediapipe),
 Copyright Google LLC, distribué sous licence Apache 2.0. Les fichiers de MediaPipe et les
 modèles de pose sont téléchargés dans vendor/ au premier lancement et ne sont pas versionnés.
+
+Polices Barlow Condensed et Source Sans 3 (SIL Open Font License 1.1), téléchargées dans
+vendor/fonts/ au premier lancement via Fontsource.

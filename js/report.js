@@ -155,10 +155,10 @@ export async function drawFrame(ctx, fr, S, opts = {}) {
   ctx.fillStyle = '#fff';
   for (const i of [11, 12, 13, 14, 15, 16, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32]) { const [x, y] = T(fr.lm[i]); ctx.beginPath(); ctx.arc(x, y, ctx.lineWidth * 1.2, 0, 7); ctx.fill(); }
   if (opts.label) tag(ctx, opts.label, 10, 26, S);
-  if (opts.stance) tag(ctx, 'APPUI', S - 80, 26, S, '#55b883', '#0f1418');
+  if (opts.stance) tag(ctx, 'Appui', S - 70, 26, S, '#55b883', '#0f1418');
 }
 function tag(ctx, txt, x, y, S, bg = 'rgba(15,20,24,.85)', fg = '#fff') {
-  ctx.font = `600 ${Math.round(S / 26)}px "JetBrains Mono", ui-monospace, monospace`;
+  ctx.font = `600 ${Math.round(S / 26)}px "Source Sans 3", system-ui, sans-serif`;
   const w = ctx.measureText(txt).width; ctx.fillStyle = bg; ctx.fillRect(x - 6, y - S / 26 - 4, w + 12, S / 26 + 12);
   ctx.fillStyle = fg; ctx.fillText(txt, x, y);
 }

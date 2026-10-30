@@ -16,7 +16,11 @@ PORT = int(args[0]) if args else 8777
 
 MP = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14'
 MODELS = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker'
+FONTS = 'https://cdn.jsdelivr.net/npm/@fontsource'
 DEPS = {
+    **{f'vendor/fonts/{f}.woff2': f'{FONTS}/{pkg}@5.2.5/files/{f}.woff2' for pkg, f in [
+        ('barlow-condensed', 'barlow-condensed-latin-600-normal'), ('barlow-condensed', 'barlow-condensed-latin-700-normal'),
+        ('source-sans-3', 'source-sans-3-latin-400-normal'), ('source-sans-3', 'source-sans-3-latin-600-normal')]},
     'vendor/vision_bundle.mjs': f'{MP}/vision_bundle.mjs',
     'vendor/wasm/vision_wasm_internal.js': f'{MP}/wasm/vision_wasm_internal.js',
     'vendor/wasm/vision_wasm_internal.wasm': f'{MP}/wasm/vision_wasm_internal.wasm',
@@ -51,7 +55,7 @@ def fetch_deps():
 class Handler(http.server.SimpleHTTPRequestHandler):
     extensions_map = {**http.server.SimpleHTTPRequestHandler.extensions_map,
                       '.mjs': 'text/javascript', '.js': 'text/javascript', '.wasm': 'application/wasm',
-                      '.task': 'application/octet-stream'}
+                      '.task': 'application/octet-stream', '.woff2': 'font/woff2'}
 
     def log_message(self, *args):
         pass

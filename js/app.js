@@ -99,19 +99,21 @@ async function renderReport(a) {
   const R = $('#report');
   R.innerHTML = `<div class="rep">
   <header>
-    <span class="eyebrow">Rapport de foulée</span><h1>${esc(title)}</h1>
+    <h1>${esc(title)}</h1>
     <div class="meta"><span>Vidéo <b>${esc(a.videoName)}</b></span><span><b>${a.size[0]}×${a.size[1]} · ${fmt(a.fps, 2)} i/s · ${fmt(a.duration, 0)} s</b></span>
       <span>Coureur <b>${fmt(a.height * 100)} cm${a.weight ? ` · ${fmt(a.weight)} kg` : ''}</b></span><span>Modèle <b>${a.model} (${a.delegate})</b></span>
       <span>Analysé le <b>${new Date(a.date).toLocaleString('fr-FR')}</b></span></div>
     <div class="actions"><button class="btn small" id="exp">Exporter (JSON)</button><button class="btn ghost" id="del">Supprimer</button><button class="btn ghost" id="again">Nouvelle analyse</button></div>
     ${a.fpsNote ? `<p class="note">${esc(a.fpsNote)}</p>` : ''}${a.fps < 50 ? '<p class="note">Moins de 50 images/s : temps de contact et de vol imprécis (± 1 image = ' + fmt(1000 / a.fps) + ' ms).</p>' : ''}
   </header>
-  <section><h2>En bref</h2><div class="prio">${cards.map((c) => `<article><span class="chip ${STATUS[c.st][0]}">${STATUS[c.st][1]}</span><h4>${c.t}</h4><p>${c.d}</p></article>`).join('')}</div></section>
-  <section><h2>Passages repérés</h2><div class="passes">${a.passes.map((p, i) => `<span class="pass">${i + 1}. ${KIND[p.kind]} · ${fmt(p.t0, 1)}–${fmt(p.t1, 1)} s · ${p.frames.filter((f) => f.lm).length}/${p.frames.length} images${p.metrics?.error ? ' · non exploitable' : p.kind === 'profil' ? (p.metrics.footsOk ? ` · ${p.metrics.nSteps} appuis` : ' · pieds peu visibles, ignoré') : ` · ${p.metrics.contacts?.length ?? 0} appuis`}</span>`).join('')}</div></section>
-  ${prof.length ? `<section><h2>Rythme</h2><div class="kpis">${prof.map((p, i) => `
-    <div class="kpi"><span class="k">Passage ${a.passes.indexOf(p) + 1} · allure</span><span class="v">${pace(p.metrics.pace)}</span><span class="s">min/km (${fmt(p.metrics.speed, 2)} m/s)</span></div>
-    <div class="kpi"><span class="k">Cadence</span><span class="v">${fmt(p.metrics.cadence)}</span><span class="s">pas/min · pas de ${fmt(p.metrics.step_len, 2)} m</span></div>
-    <div class="kpi"><span class="k">Contact · vol</span><span class="v">${fmt(p.metrics.contact_ms)} · ${fmt(p.metrics.flight_ms)}</span><span class="s">ms</span></div>`).join('')}</div></section>` : ''}
+  <section><h2>En bref</h2><ul class="prio">${cards.map((c) => `<li><span class="chip ${STATUS[c.st][0]}">${STATUS[c.st][1]}</span><h4>${c.t}</h4><p>${c.d}</p></li>`).join('')}</ul></section>
+  <section><h2>Passages repérés</h2><div class="tablewrap"><table><thead><tr><th>Passage</th><th>Images analysées</th><th class="num">Allure</th><th class="num">Cadence</th><th class="num">Pas</th><th class="num">Contact · vol</th><th>Appuis</th></tr></thead><tbody>${a.passes.map((p, i) => {
+    const m = p.metrics || {}, run = p.kind === 'profil' && prof.includes(p);
+    const steps = m.error ? 'non exploitable' : p.kind === 'profil' ? (m.footsOk ? `${m.nSteps}` : 'pieds peu visibles, ignoré') : `${m.contacts?.length ?? 0}`;
+    return `<tr><td><b>${i + 1}. ${KIND[p.kind]}</b> <span class="muted">${fmt(p.t0, 1)}–${fmt(p.t1, 1)} s</span></td><td>${p.frames.filter((f) => f.lm).length}/${p.frames.length}</td>
+      <td class="num">${run ? `<span class="big">${pace(m.pace)}</span> /km` : '—'}</td><td class="num">${run ? `<span class="big">${fmt(m.cadence)}</span> pas/min` : '—'}</td>
+      <td class="num">${run ? `${fmt(m.step_len, 2)} m` : '—'}</td><td class="num">${run ? `${fmt(m.contact_ms)} · ${fmt(m.flight_ms)} ms` : '—'}</td><td>${steps}</td></tr>`;
+  }).join('')}</tbody></table></div></section>
   <section><h2>Lecteur image par image</h2><div class="player">
     <canvas id="pc" width="576" height="576" aria-label="Image analysée avec le squelette"></canvas>
     <div class="pcontrols">
@@ -201,8 +203,11 @@ function setupPlayer(a) {
     $('#pread').innerHTML = `Temps <b>${fmt(fr.f / a.fps, 2)} s</b> · image <b>${i + 1}/${p.frames.length}</b>` + (fr.lm ? `<br>Flexion genou (étiquettes modèle) G <b>${fmt(kneeAng(fr.lm, 0))}°</b> · D <b>${fmt(kneeAng(fr.lm, 1))}°</b>` : '<br>Pas de pose détectée sur cette image');
   }
   const stop = () => { clearInterval(timer); timer = null; $('#pplay').textContent = 'Lecture'; };
-  $('#psel').onchange = (e) => { stop(); pi = Number(e.target.value); i = 0; range.max = a.passes[pi].frames.length - 1; draw(); };
-  range.max = a.passes[0].frames.length - 1;
+  // ouvre sur le premier contact (à défaut, la première pose) plutôt que sur l'entrée dans le champ
+  const firstPose = () => { const p = a.passes[pi], f0 = p.metrics?.steps?.[0]?.f_ic ?? p.metrics?.contacts?.[0]?.f0;
+    const k = p.frames.findIndex((x) => (f0 !== undefined ? x.f === f0 : x.lm)); return Math.max(0, k); };
+  $('#psel').onchange = (e) => { stop(); pi = Number(e.target.value); i = firstPose(); range.max = a.passes[pi].frames.length - 1; draw(); };
+  range.max = a.passes[0].frames.length - 1; i = firstPose();
   range.oninput = () => { stop(); i = Number(range.value); draw(); };
   $('#pprev').onclick = () => { stop(); i = Math.max(0, i - 1); draw(); };
   $('#pnext').onclick = () => { stop(); i = Math.min(a.passes[pi].frames.length - 1, i + 1); draw(); };
@@ -266,7 +271,7 @@ function chartHTML(list) {
   return `<figure class="card"><svg class="chart" viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Évolution du tibia au contact et de la cadence">
     <line x1="${pad}" x2="${W - pad}" y1="${Hh - pad}" y2="${Hh - pad}" stroke="var(--line)"/>
     ${series('sh', -5, 25, 'var(--warn)')}${series('cad', 140, 195, 'var(--accent)')}
-    <text x="${pad}" y="16" fill="var(--muted)" font-size="12" font-family="var(--mono)">Tibia au contact (−5 à 25°, orange) · Cadence (140 à 195 pas/min, bleu) — passage le plus lent</text></svg></figure>`;
+    <text x="${pad}" y="16" fill="var(--muted)" font-size="12" font-family="var(--body)">Tibia au contact (−5 à 25°, orange) · Cadence (140 à 195 pas/min, bleu), passage le plus lent</text></svg></figure>`;
 }
 
 if (params.get('autotest')) {
