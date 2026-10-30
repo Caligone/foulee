@@ -19,7 +19,12 @@ Tu reprends **Foulée**, une app web d'analyse de foulée à partir d'une vidéo
 ## À faire, dans l'ordre
 1. **Tester d'autres vidéos** (prévu le 31/10) : portrait (rotation 90/270 jamais testée), H.264, 120/240 i/s, Safari.
 2. **Vérifier que WebCodecs donne le même résultat d'un lancement à l'autre** (deux analyses `full` dans Chrome), puis écrire le test Node de non-régression (`profileMetrics` / `frontalMetrics` sur un JSON de points). Plages : P1 cadence 165–172, contact ~284 ms, tibia 9–11°, talon devant le bassin 12–16 cm, pied 16–22°.
-3. **Passage 2 avec `heavy`** : 1 seul appui détecté, mesures publiées quand même. Les signaler comme non fiables sous 2 ou 3 appuis.
+3. **Pour que l'app marche pour d'autres que moi** (audit du 30/10) :
+   - Tapis de course impossible : il faut un déplacement latéral (`vx > 0,5` dans `profileMetrics`, `lat` dans `findPassages`). C'est un sujet de conception.
+   - Mémoire du scan : ≈ 140 Mo par minute de vidéo (320×180×4 octets toutes les 0,1 s), ce qui fait planter l'onglet au-delà de quelques minutes.
+   - Le statut du temps de contact ignore l'allure (−17 ms par km/h selon Malisoux 2023) : vérifier la vitesse moyenne de l'étude avant de corriger.
+   - L'oscillation verticale est comparée aux hommes seulement : trouver une référence sourcée pour les femmes et demander le sexe.
+   - La simulation de cadence (rééchantillonnage d'un export JSON) sert de base au test Node.
 4. Robustesse du scan : seuils (différence 32, masque d'agitation 0,12, `lat` / `grow`). Retirer les champs de débogage de `scanVideo` (`cands`, `freq`, `times`).
 5. Vue de dos (vidéo à venir), i18n FR/EN, GitHub Pages (CORS des modèles).
 
