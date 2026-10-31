@@ -1,7 +1,7 @@
 import { loadPose, openVideo, scanVideo, findPassages, poseOnPassage } from './engine.js';
 import { openFrames } from './frames.js';
 import { profileMetrics, frontalMetrics } from './metrics.js';
-import { saveAnalysis, listAnalyses, getAnalysis, deleteAnalysis } from './store.js';
+import { saveAnalysis, listAnalyses, getAnalysis, deleteAnalysis, deleteAll } from './store.js';
 import { synthesize, gaugesHTML, drawFrame, drawContact, drawFrontal, drawTarget, typical, fmt, pace, REFS, STATUS, PHOTO, css } from './report.js';
 
 const $ = (s) => document.querySelector(s);
@@ -149,7 +149,8 @@ async function renderReport(a) {
     if (t.tagName === 'DETAILS') t.open = true;
     t.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
   }));
-  $('#del').onclick = async () => { if (a.unsaved) return show('new'); $('#del').textContent = 'Confirmer : supprimer définitivement'; $('#del').onclick = async () => { await deleteAnalysis(a.id); show('history'); }; };
+  if (a.legacy) { $('#del').replaceWith(Object.assign(document.createElement('p'), { className: 'muted', textContent: 'Analyse enregistrée avec une version précédente : Chrome plante si on la supprime seule. Pour la retirer, utilise « Effacer tout l\'historique » dans l\'Historique.' })); }
+  else $('#del').onclick = async () => { if (a.unsaved) return show('new'); $('#del').textContent = 'Confirmer : supprimer définitivement'; $('#del').onclick = async () => { $('#del').disabled = true; $('#del').textContent = 'Suppression…'; await deleteAnalysis(a.id); show('history'); }; };
   $('#again').onclick = () => show('new');
   setupPlayer(a);
   await renderKeys(a, prof, fr);
@@ -288,7 +289,10 @@ async function renderHistory() {
       <td class="num">${ps.map((m) => pace(m.pace)).join(' · ') || '—'}</td><td class="num">${j('cadence')}</td><td class="num">${j('contact_ms')}</td><td class="num">${j('shank_deg')}</td><td class="num">${j('heel_hip_pct')}</td><td class="num">${j('trunk')}</td></tr>`;
   };
   H.innerHTML = `${chartHTML(list)}<div class="tablewrap"><table><thead><tr><th>Date</th><th>Libellé</th><th>Vues</th><th>Allure</th><th>Cadence</th><th>Contact ms</th><th>Tibia °</th><th>Talon/bassin %</th><th>Buste °</th></tr></thead><tbody>${list.map(row).join('')}</tbody></table></div>
-    <p class="muted">Vues : P = profil, F = face, D = dos. Clique sur une ligne pour rouvrir le rapport.</p>`;
+    <p class="muted">Vues : P = profil, F = face, D = dos. Clique sur une ligne pour rouvrir le rapport.</p>
+    <div class="actions"><button class="btn ghost" id="delall">Effacer tout l'historique</button></div>`;
+  $('#delall').onclick = () => { $('#delall').textContent = `Confirmer : effacer les ${list.length} analyses`;
+    $('#delall').onclick = async () => { $('#delall').disabled = true; await deleteAll(); renderHistory(); }; };
   H.querySelectorAll('tr.clickable').forEach((tr) => {
     const open = async () => { const a = await getAnalysis(tr.dataset.id); if (a) renderReport(a); };
     tr.addEventListener('click', open); tr.addEventListener('keydown', (e) => { if (e.key === 'Enter') open(); });
