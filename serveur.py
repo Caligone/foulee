@@ -7,7 +7,7 @@ ensuite l'application fonctionne entièrement hors ligne.
 
 Options : [port] --no-browser --offline (ne rien télécharger)
 """
-import http.server, os, socketserver, sys, threading, urllib.parse, urllib.request, webbrowser
+import http.server, os, posixpath, socketserver, sys, threading, urllib.parse, urllib.request, webbrowser
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 os.chdir(ROOT)
@@ -66,7 +66,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     SERVIS = ('/', '/index.html', '/css/', '/js/', '/vendor/', '/favicon.ico')
 
     def send_head(self):
-        chemin = os.path.normpath(urllib.parse.unquote(self.path.split('?')[0].split('#')[0])).lower()
+        chemin = posixpath.normpath(urllib.parse.unquote(self.path.split('?')[0].split('#')[0])).lower()
         if chemin != '/' and not any(chemin == s.rstrip('/') or chemin.startswith(s) for s in self.SERVIS if s != '/'):
             self.send_error(404)
             return None
