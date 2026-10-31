@@ -15,6 +15,8 @@ export function qualite(a) {
 
   if (a.fps >= FPS_MIN) ok(`${Math.round(a.fps)} images/s`);
   else ko(`${Math.round(a.fps)} images/s : temps de contact et de vol à ± ${Math.round(1000 / a.fps)} ms`, 'Filme à 60 images/s ou plus (120 ou 240 en ralenti, transféré en original).');
+  if (a.vfr) ko('Cadence d\'images irrégulière : temps de contact et de vol moins fiables', 'Désactive le mode basse lumière ou le ralenti automatique, ou filme avec plus de lumière.');
+  if (a.size?.[1] > a.size?.[0]) ko('Vidéo en portrait : le champ est étroit, peu d\'appuis par passage', 'Tourne le téléphone à l\'horizontale (paysage).');
   if (a.decoder === 'seek') ko('Décodage par sauts : temps moins précis', 'Ouvre l\'appli dans Chrome ou Safari, ou exporte la vidéo en MP4 H.264.');
 
   if (!prof.length) ko('Aucun passage de profil exploitable', 'Passe de profil à 3–4 m du téléphone, pieds visibles en entier, au moins 1 s dans le champ.');
@@ -24,7 +26,7 @@ export function qualite(a) {
     else ko(`${n} appuis de profil seulement (au moins ${MIN_APPUIS} recommandés, Dingenen 2018)`, 'Fais un ou deux passages de profil de plus.');
     const jambe = mediane(prof.map((p) => p.metrics.leg_px));
     if (jambe >= JAMBE_MIN_PX) ok(`Coureur assez grand à l'image (jambe ≈ ${Math.round(jambe)} px)`);
-    else ko(`Coureur petit à l'image (jambe ≈ ${Math.round(jambe)} px, seuil indicatif ${JAMBE_MIN_PX} px) : quelques centimètres d'erreur possibles`, 'Rapproche le téléphone (3–4 m de ta ligne de course) ou filme en 4K.');
+    else ko(`Coureur petit à l'image (jambe ≈ ${Math.round(jambe)} px, seuil indicatif ${JAMBE_MIN_PX} px) : quelques centimètres d'erreur possibles`, 'Rapproche le téléphone : 3–4 m de ta ligne de course.');
     const vis = Math.min(...prof.map((p) => p.metrics.visibleShare ?? 1));
     // la part compte aussi l'entrée et la sortie du champ : ~0,5 sur des passages bien filmés
     if (vis < 0.35) ko('Pieds souvent mal visibles sur un passage de profil', 'Évite l\'herbe haute et les obstacles devant les pieds ; garde les pieds entiers dans l\'image.');

@@ -5,28 +5,29 @@
 //   - « indicatif » : seuil choisi par l'appli faute de norme, toujours affiché comme tel ;
 //   - « aucun »    : pas de norme, la mesure est seulement décrite.
 // et un sens : ce qui pose question est la valeur trop basse (« bas »), trop haute (« haut ») ou les deux.
-// Statuts : « ok » dans le repère ; « hors » au-delà de la bande (1 écart-type) ou du seuil indicatif ;
-// « loin » au-delà de 2 écarts-types (en dehors d'environ 95 % de la population de référence) ;
-// « info » sans repère ; « na » non mesuré.
+// Statuts, une fois retirée la marge de mesure (MARGE) : « ok » dans le repère ; « hors » au-delà de la bande
+// (1 écart-type, soit ~16 % des coureurs de référence d'un côté) ou du seuil indicatif ; « loin » au-delà de
+// 2 écarts-types (~2 %) ; « info » sans repère ; « na » non mesuré.
+// Les repères de Malisoux 2023 suivent l'allure : la moyenne est recentrée sur la vitesse du coureur.
 
 export const REPERES = {
   cadence: {
     label: 'Cadence', unit: 'pas/min', sc: [140, 195], fiabilite: 'haute',
     what: 'Nombre de pas par minute, les deux pieds comptés.',
-    nature: 'publie', m: 164, sd: 9, sens: 'bas',
-    ref: 'Cadence spontanée : 164 ± 9 pas/min chez ~860 coureurs loisirs (Malisoux 2023, tapis). Elle augmente avec la vitesse.',
+    nature: 'publie', m: 164, sd: 9, sens: 'bas', pente: 3.07,
+    ref: 'Cadence spontanée : 164 ± 9 pas/min chez ~860 coureurs loisirs à 9,9 km/h en moyenne, +3 pas/min par km/h (Malisoux 2023, tapis).',
   },
   contact_ms: {
     label: 'Temps de contact', unit: 'ms', sc: [180, 400], fiabilite: 'haute (± 1 image)',
     what: 'Durée pendant laquelle le pied reste au sol à chaque pas.',
-    nature: 'publie', m: 289, sd: 35, sens: 'haut',
-    ref: '289 ± 35 ms à allure spontanée, environ −17 ms par km/h de plus (Malisoux 2023, tapis).',
+    nature: 'publie', m: 289, sd: 35, sens: 'haut', pente: -17.3,
+    ref: '289 ± 35 ms à 9,9 km/h en moyenne, −17 ms par km/h de plus (Malisoux 2023, tapis).',
   },
   duty: {
     label: 'Part du temps au sol', unit: '%', sc: [25, 55], fiabilite: 'haute',
     what: 'Part de chaque foulée passée au sol plutôt qu\'en l\'air.',
-    nature: 'publie', m: 39, sd: 4, sens: 'haut',
-    ref: 'Duty factor : 39 ± 4 % (Malisoux 2023, tapis).',
+    nature: 'publie', m: 39, sd: 4, sens: 'haut', pente: -1.63,
+    ref: '39 ± 4 % du temps au sol à 9,9 km/h en moyenne, −1,6 point par km/h de plus (Malisoux 2023, tapis).',
   },
   vosc_cm: {
     label: 'Oscillation verticale (bassin)', unit: 'cm', sc: [3, 15], fiabilite: 'moyenne',
@@ -61,8 +62,8 @@ export const REPERES = {
   knee_max: {
     label: 'Flexion max du genou en appui', unit: '°', sc: [20, 75], fiabilite: 'faible (jambes croisées)',
     what: 'Pliure la plus forte du genou pendant l\'appui, quand il porte le poids du corps.',
-    nature: 'publie', band: [40, 50], sens: 'bas',
-    ref: 'Environ 45° en moyenne (Souza 2016).',
+    nature: 'indicatif', seuil: 40, sens: 'bas',
+    ref: 'Environ 45° en moyenne (Souza 2016). Seuil indicatif de l\'appli : 40°.',
   },
   thigh_to: {
     label: 'Cuisse derrière la verticale au décollage', unit: '°', sc: [-10, 35], fiabilite: 'moyenne',
@@ -82,41 +83,45 @@ export const REPERES = {
   },
   // vue de dos
   drop: {
-    label: 'Chute du bassin en appui', unit: '°', sc: [0, 12], fiabilite: 'modérée à bonne en 2D (Dingenen 2018)',
+    label: 'Inclinaison latérale du bassin en appui', unit: '°', sc: [0, 12], fiabilite: 'modérée à bonne en 2D (Dingenen 2018)',
     what: 'Abaissement du côté du bassin opposé au pied d\'appui.',
     nature: 'publie', m: 3.7, sd: 1.9, sens: 'haut',
     ref: '3,7 ± 1,9° en moyenne chez des coureurs loisirs (Bramah 2018, 3D).',
   },
 };
 
+// marge de mesure : en dessous, un écart au repère n'est pas interprété. Seuil de l'appli, d'après l'écart observé
+// entre deux modèles de pose sur une même vidéo ; bassin : plus petite différence détectable en 2D (Dingenen 2018).
+export const MARGE = { cadence: 3, contact_ms: 25, duty: 3, vosc_cm: 1, foot_deg: 4, shank_deg: 4, heel_hip_pct: 4,
+  knee_ic: 4, knee_max: 4, thigh_to: 4, trunk: 3, drop: 2.8 };
+export const BRUIT = MARGE;
+
+const KMH_REF = 9.9; // vitesse moyenne des coureurs de Malisoux 2023
+// moyenne de référence, recentrée sur l'allure du coureur quand la source le permet (ctx.speed en m/s)
+export const moyenne = (R, ctx = {}) => R.pente && Number.isFinite(ctx.speed) ? R.m + R.pente * (ctx.speed * 3.6 - KMH_REF) : R.m;
 // bande « dans le repère » : publiée telle quelle, ou moyenne ± 1 écart-type
-export const bande = (R) => R.band ?? (R.sd ? [R.m - R.sd, R.m + R.sd] : null);
+export const bande = (R, ctx) => R.band ?? (R.sd ? [moyenne(R, ctx) - R.sd, moyenne(R, ctx) + R.sd] : null);
 export const classe = (R, v) => R.classes?.find(([lim]) => v < lim)?.[1];
 
-export function statut(k, v) {
-  const R = REPERES[k];
-  if (!R || !Number.isFinite(v)) return 'na';
-  if (R.nature === 'aucun') return 'info';
-  const bas = R.sens !== 'haut', haut = R.sens !== 'bas';
-  if (R.nature === 'indicatif') return (haut && v > R.seuil) || (bas && v < R.seuil) ? 'hors' : 'ok';
-  if (R.sd) {
-    const z = (v - R.m) / R.sd;
-    if ((haut && z > 2) || (bas && z < -2)) return 'loin';
-  }
-  const [b0, b1] = bande(R);
-  return (haut && v > b1) || (bas && v < b0) ? 'hors' : 'ok';
-}
-
-// écart au repère dans le sens qui pose question (0 dans le repère) : sert à dire si une mesure se rapproche du repère
-export function ecart(k, v) {
+// écart au repère dans le sens qui pose question (0 dans le repère)
+export function ecart(k, v, ctx) {
   const R = REPERES[k];
   if (!R || R.nature === 'aucun' || !Number.isFinite(v)) return 0;
-  const [b0, b1] = R.nature === 'indicatif' ? [R.seuil, R.seuil] : bande(R);
+  const [b0, b1] = R.nature === 'indicatif' ? [R.seuil, R.seuil] : bande(R, ctx);
   return Math.max(R.sens !== 'haut' ? b0 - v : 0, R.sens !== 'bas' ? v - b1 : 0, 0);
 }
 
+export function statut(k, v, ctx) {
+  const R = REPERES[k];
+  if (!R || !Number.isFinite(v)) return 'na';
+  if (R.nature === 'aucun') return 'info';
+  const e = ecart(k, v, ctx) - (MARGE[k] ?? 0);
+  if (e <= 0) return 'ok';
+  return R.sd && e > R.sd ? 'loin' : 'hors';
+}
+
 export const LIBELLES = {
-  ok: 'Dans le repère', hors: 'Hors repère', loin: 'Nettement hors repère', info: 'Sans repère', na: 'Non mesuré',
+  ok: 'Dans le repère', hors: 'Écart au repère', loin: 'Fort écart au repère', info: 'Pour info', na: 'Non mesuré',
 };
 // pour un seuil de l'appli, on ne parle pas de « repère »
 export const libelle = (k, st) => REPERES[k]?.nature === 'indicatif' && st === 'hors' ? 'Au-delà du seuil indicatif' : LIBELLES[st];
@@ -132,22 +137,20 @@ export const typique = (mesures) => Object.fromEntries(
   [...Object.keys(REPERES), 'heel_hip_cm', 'pace', 'speed'].map((k) => [k, med(mesures.map((m) => m[k]))]));
 
 // ---------- Comparaison de deux analyses ----------
-// marge de mesure : seuil de l'appli, d'après l'écart observé entre deux modèles de pose sur une même vidéo
-export const BRUIT = { cadence: 3, contact_ms: 25, duty: 3, vosc_cm: 1, foot_deg: 4, shank_deg: 4, heel_hip_pct: 4,
-  knee_ic: 4, knee_max: 4, thigh_to: 4, trunk: 3 };
 const RANG = { ok: 0, hors: 1, loin: 2 };
 
-// verdict seulement au-delà de la marge : changement de statut, ou à statut égal hors repère, rapprochement du repère
+// verdict seulement au-delà de la marge : changement de statut, ou à statut égal hors repère, rapprochement du repère.
+// avant / après : valeurs typiques (avec leur vitesse, pour les repères qui dépendent de l'allure)
 export function comparer(avant, apres) {
-  return Object.keys(BRUIT).filter((k) => Number.isFinite(avant[k]) && Number.isFinite(apres[k])).map((k) => {
-    const sa = statut(k, avant[k]), sb = statut(k, apres[k]), diff = apres[k] - avant[k];
+  return Object.keys(MARGE).filter((k) => k in REPERES && Number.isFinite(avant[k]) && Number.isFinite(apres[k])).map((k) => {
+    const sa = statut(k, avant[k], avant), sb = statut(k, apres[k], apres), diff = apres[k] - avant[k];
     let verdict = 'stable';
-    if (REPERES[k].nature !== 'aucun' && Math.abs(diff) >= BRUIT[k]) {
-      const gain = ecart(k, avant[k]) - ecart(k, apres[k]);
+    if (REPERES[k].nature === 'aucun') verdict = 'sans repère';
+    else if (Math.abs(diff) >= MARGE[k]) {
+      const gain = ecart(k, avant[k], avant) - ecart(k, apres[k], apres);
       if (RANG[sb] < RANG[sa] || (RANG[sb] === RANG[sa] && RANG[sb] > 0 && gain > 0)) verdict = 'mieux';
       else if (RANG[sb] > RANG[sa] || (RANG[sb] === RANG[sa] && RANG[sb] > 0 && gain < 0)) verdict = 'moins bien';
     }
-    if (REPERES[k].nature === 'aucun') verdict = 'sans repère';
     return { k, avant: avant[k], apres: apres[k], diff, statutAvant: sa, statutApres: sb, verdict };
   });
 }

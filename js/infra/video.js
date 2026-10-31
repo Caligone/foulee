@@ -99,10 +99,12 @@ export async function scanVideo(v, fps, onProgress, source) {
   } else if ('requestVideoFrameCallback' in HTMLVideoElement.prototype) {
     // lecture accélérée : on prélève une image tous les 0,1 s de temps vidéo (bien plus rapide que des sauts)
     await seek(v, 0);
-    await new Promise((res) => {
+    await new Promise((res, rej) => {
       let next = 0;
       const cb = (_, meta) => {
-        if (meta.mediaTime >= next) { grab(meta.mediaTime); next = meta.mediaTime + step; onProgress?.(meta.mediaTime / v.duration); }
+        // une annulation (exception levée par onProgress) doit arrêter la lecture, pas se perdre dans le rappel
+        try { if (meta.mediaTime >= next) { grab(meta.mediaTime); next = meta.mediaTime + step; onProgress?.(meta.mediaTime / v.duration); } }
+        catch (e) { v.pause(); v.onended = null; return rej(e); }
         if (v.ended || v.currentTime >= v.duration - 0.02) return res();
         v.requestVideoFrameCallback(cb);
       };
@@ -287,7 +289,7 @@ export async function poseOnPassage(v, pose, passage, scan, fps, onFrame, source
     for (const b of scan.boxes) if (b.ok && (!best || Math.abs(b.t - t) < Math.abs(best.t - t))) best = b;
     return best;
   };
-  let track = null; const frames = [];
+  let track = null; const frames = [], jpegs = [];
   for await (const { f, t, src } of source.frames(passage.t0, passage.t1)) {
     fc.drawImage(src, 0, 0);
     const b = boxAt(t);
@@ -315,9 +317,11 @@ export async function poseOnPassage(v, pose, passage, scan, fps, onFrame, source
     const ts = Math.min(H, Math.max(200, (track?.side ?? side) * 1.05));
     const TX = Math.max(0, Math.min(W - ts, (track?.cx ?? cx) - ts / 2)), TY = Math.max(0, Math.min(H - ts, (track?.cy ?? cy) - ts / 2));
     tc.drawImage(full, TX, TY, ts, ts, 0, 0, 384, 384);
-    const blobImg = await thumb.convertToBlob({ type: 'image/jpeg', quality: 0.78 });
-    frames.push({ f, lm, thumb: blobImg, view: [TX, TY, ts] });
+    // l'encodage JPEG tourne pendant l'image suivante : convertToBlob copie la vignette dès l'appel
+    jpegs.push(thumb.convertToBlob({ type: 'image/jpeg', quality: 0.78 }));
+    frames.push({ f, lm, thumb: null, view: [TX, TY, ts] });
     onFrame?.(frames.length / n, crop, lm, X0, Y0, side);
   }
+  (await Promise.all(jpegs)).forEach((b, i) => { frames[i].thumb = b; });
   return frames;
 }

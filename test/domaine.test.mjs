@@ -6,20 +6,31 @@ import { etat, appuis, aJour, ALGO } from '../js/domaine/analyse.js';
 import { bilan } from '../js/domaine/recommandations.js';
 import { pace, fmt } from '../js/format.js';
 
-test('statut : bande à 1 écart-type, « loin » au-delà de 2, dans le sens qui pose question', () => {
+test('statut : bande à 1 écart-type, « loin » au-delà de 2, marge de mesure retirée, dans le sens qui pose question', () => {
   assert.equal(statut('cadence', 164), 'ok');
   assert.equal(statut('cadence', 176), 'ok'); // une cadence haute n'est pas signalée
+  assert.equal(statut('cadence', 153), 'ok'); // sous la bande (155) mais dans la marge de 3 pas/min
   assert.equal(statut('cadence', 150), 'hors');
   assert.equal(statut('cadence', 140), 'loin');
-  assert.equal(statut('trunk', -1), 'loin');
-  assert.equal(statut('trunk', 2), 'hors');
-  assert.equal(statut('trunk', 13), 'hors');
-  assert.equal(statut('trunk', 16), 'loin');
+  assert.equal(statut('trunk', 2), 'ok'); // 1,7° sous la bande, marge de 3°
+  assert.equal(statut('trunk', -1), 'hors');
+  assert.equal(statut('trunk', -6), 'loin');
+  assert.equal(statut('trunk', 16), 'hors');
+});
+
+test('repères selon l\'allure (Malisoux 2023) : la moyenne suit la vitesse', () => {
+  const lent = { speed: 8 / 3.6 }, rapide = { speed: 14 / 3.6 };
+  assert.equal(statut('contact_ms', 330, lent), 'ok'); // ~322 ms attendus à 8 km/h
+  assert.equal(statut('contact_ms', 330), 'ok');
+  assert.equal(statut('contact_ms', 300, rapide), 'hors'); // ~218 ms attendus à 14 km/h
+  assert.equal(statut('contact_ms', 300), 'ok'); // sans vitesse : repère moyen
 });
 
 test('statut : repère sans écart-type, seuil indicatif, mesure sans repère', () => {
   assert.equal(statut('shank_deg', 4), 'ok');
   assert.equal(statut('shank_deg', 12), 'hors'); // pas de « loin » sans écart-type publié
+  assert.equal(statut('shank_deg', 8), 'ok'); // 3° au-delà de la bande, marge de 4°
+  assert.equal(statut('heel_hip_pct', 17), 'ok'); // seuil 15, marge 4
   assert.equal(statut('heel_hip_pct', 20), 'hors');
   assert.equal(libelle('heel_hip_pct', 'hors'), 'Au-delà du seuil indicatif');
   assert.equal(statut('thigh_to', 2), 'info');
@@ -38,6 +49,7 @@ test('écart au repère', () => {
   assert.equal(ecart('cadence', 150), 155 - 150);
   assert.equal(ecart('cadence', 180), 0);
   assert.equal(ecart('heel_hip_pct', 25), 10);
+  assert.equal(ecart('cadence', 150, { speed: 9.9 / 3.6 }), 155 - 150);
 });
 
 test('comparaison : rien sous la marge de mesure, verdict par statut au-delà', () => {
@@ -92,7 +104,7 @@ test('bilan : aucune allégation médicale dans les textes', () => {
   const b = bilan({ passes: [profil(m), dos] });
   const texte = JSON.stringify(b);
   assert.ok(b.exercices.length >= 3);
-  assert.doesNotMatch(texte, /bless|douleur|prévien|prévention|guéri|soign|traitement|diagnos/i);
+  assert.doesNotMatch(texte, /bless|douleur|prévien|prévention|guéri|soign|traitement|diagnos|contrainte|adduction|charge sur|impact/i);
 });
 
 test('qualité du tournage : signale ce qui est à changer, avec un conseil', async () => {
@@ -105,4 +117,22 @@ test('qualité du tournage : signale ce qui est à changer, avec un conseil', as
   assert.ok(ko.some((t) => /petit à l'image/.test(t)));
   assert.ok(ko.some((t) => /vue de dos/i.test(t)));
   assert.ok(q.filter((x) => !x.ok).every((x) => x.conseil));
+});
+
+test('bilan : un côté du bassin manquant n\'efface pas la mesure ; une mesure non calculée ne déclenche rien', () => {
+  const dos = { kind: 'dos', metrics: { contacts: [{}, {}], crossings: 0, drop: { gauche: 9, droite: NaN }, obliqueWarn: false } };
+  assert.ok(bilan({ passes: [dos] }).constats.some((c) => /bassin/i.test(c.t) && /9,0/.test(c.d)));
+  const m = { footsOk: true, nSteps: 5, shank_deg: 2, heel_hip_pct: 5, vosc_cm: NaN, trunk: 7, cadence: 165, knee_ic: 10, speed: 3, steps: [] };
+  const b = bilan({ passes: [profil(m)] });
+  assert.ok(!b.constats.some((c) => /Rebond/.test(c.t)));
+  assert.ok(b.constats.some((c) => c.t === 'Rien de marquant'));
+});
+
+test('bilan : pas de piste d\'entraînement tirée d\'une vue de biais ; la cadence visée n\'est pas un point fort', () => {
+  const face = { kind: 'face', metrics: { contacts: [{}, {}, {}], crossings: 2, drop: {}, obliqueWarn: true } };
+  const m = { footsOk: true, nSteps: 5, shank_deg: 12, heel_hip_pct: 25, heel_hip_cm: 20, trunk: 7, cadence: 168, knee_ic: 10, vosc_cm: 8, speed: 3, steps: [] };
+  const b = bilan({ passes: [profil(m), face] });
+  assert.ok(!b.exercices.some((x) => x.cle === 'frontal'));
+  assert.ok(b.constats.some((c) => c.label === 'À vérifier'));
+  assert.ok(!b.constats.some((c) => c.t === 'Dans la moyenne' && /cadence/.test(c.d)));
 });

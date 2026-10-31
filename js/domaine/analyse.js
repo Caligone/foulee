@@ -55,6 +55,8 @@ export function mesurer(p, fps, height) {
 // recalcule les mesures depuis les points de pose si elles viennent d'une version antérieure de l'algorithme
 export function aJour(a) {
   if ((a.algo ?? 1) === ALGO) return a;
+  // sans points de pose, rien ne peut être recalculé : l'analyse garde sa version (et ses anciennes mesures)
+  if (!a.passes.some((p) => p.frames?.some((f) => f.lm))) return a;
   const passes = a.passes.map((p) => p.frames?.some((f) => f.lm) ? { ...p, metrics: mesurer(p, a.fps, a.height) } : p);
   return { ...a, passes, algo: ALGO, recalcule: true };
 }

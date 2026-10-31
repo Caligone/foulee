@@ -53,6 +53,9 @@ async function webcodecsSource(file) {
   const byTime = samples.map((s) => s.t).sort((a, b) => a - b);
   const rank = new Map(byTime.map((t, i) => [Math.round(t * 1e6), i]));
   const fps = samples.length / (tr.duration / tr.timescale);
+  // cadence variable (Android en basse lumière, enregistreurs d'écran) : les mesures supposent un pas de temps constant
+  const durees = samples.map((x) => x.dur).filter((x) => x > 0), dm = durees.reduce((a, b) => a + b, 0) / durees.length;
+  const vfr = Math.sqrt(durees.reduce((a, b) => a + (b - dm) ** 2, 0) / durees.length) / dm > 0.15;
   // l'iPhone note l'orientation dans la matrice de la piste ; <video> l'applique, WebCodecs non
   const m = tr.matrix ?? [65536, 0];
   const rot = (Math.round(Math.atan2(m[1], m[0]) * 180 / Math.PI) + 360) % 360;
@@ -115,7 +118,7 @@ async function webcodecsSource(file) {
       if (dec.state !== 'closed') dec.close();
     }
   }
-  return { kind: 'webcodecs', fps, frames };
+  return { kind: 'webcodecs', fps, vfr, frames };
 }
 
 async function seekSource(v) {

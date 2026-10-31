@@ -19,6 +19,8 @@ export async function analyser(file, options, { onStep = () => {}, onProgress = 
     if (v.duration > 600) throw new Error(`Vidéo de ${Math.round(v.duration / 60)} min : coupe-la à moins de 10 min autour de tes passages (le repérage garde la vidéo en mémoire).`);
     const source = await openFrames(file, v);
     let fps = options.fps || source.fps, fpsNote = '';
+    if (options.fps && source.fps && Math.abs(options.fps / source.fps - 1) > 0.05) fpsNote = `Images/s forcées à ${options.fps}, alors que la vidéo en annonce ${source.fps.toFixed(1).replace('.', ',')} : tous les temps en dépendent.`;
+    if (!Number.isFinite(v.duration)) throw new Error('Durée de la vidéo inconnue (enregistrement direct ?) : exporte-la en MP4 avant de l\'analyser.');
     if (!fps) { fps = 30; fpsNote = 'Cadence d\'images non détectée : 30 i/s supposées. Renseigne-la si elle est différente.'; }
     source.fps = fps;
     if (source.kind === 'seek') fpsNote += (fpsNote ? ' ' : '') + 'Ce navigateur ne décode pas cette vidéo image par image (WebCodecs) : analyse plus lente et temps moins précis. Chrome ou Safari font mieux, ou exporte la vidéo en MP4 H.264.';
@@ -34,8 +36,10 @@ export async function analyser(file, options, { onStep = () => {}, onProgress = 
     const passages = findPassages(scan.boxes);
     if (!passages.length) throw new Error("Aucun passage de coureur exploitable n'a été repéré. Vérifie que le téléphone est immobile et que tu restes au moins 1 s dans le champ.");
 
-    onStep(3, `${passages.length} passage(s) : ${passages.map((p) => p.kind).join(', ')}`);
-    const total = passages.reduce((s, p) => s + (p.t1 - p.t0 + 1) * fps, 0);
+    const nb = (k) => passages.filter((p) => p.kind === k).length, vues = [['profil', 'de profil'], ['face', 'de face'], ['dos', 'de dos']];
+    onStep(3, `${passages.length} passage${passages.length > 1 ? 's' : ''} trouvé${passages.length > 1 ? 's' : ''} : ${vues.filter(([k]) => nb(k)).map(([k, t]) => `${nb(k)} ${t}`).join(', ')}`);
+    // nombre d'images à analyser, marges comprises (pour la barre de progression)
+    const total = passages.reduce((s, p) => s + (Math.min(v.duration - 0.05, p.t1 + 0.8) - Math.max(0, p.t0 - 0.8)) * fps + 1, 0);
     let fait = 0;
     const passes = [];
     for (const p0 of passages) {
@@ -53,7 +57,7 @@ export async function analyser(file, options, { onStep = () => {}, onProgress = 
       id: crypto.randomUUID?.() ?? String(Date.now()), date: Date.now(), videoDate: file.lastModified, label: options.label ?? '',
       videoName: file.name, height: options.height, weight: options.weight ?? null, fps, fpsNote, duration: v.duration,
       size: [v.videoWidth, v.videoHeight], model: pose.modelPath.includes('heavy') ? 'heavy' : 'autre', delegate: pose.delegate,
-      decoder: source.kind, algo: ALGO, passes,
+      decoder: source.kind, vfr: source.vfr ?? null, algo: ALGO, passes,
     };
   } finally {
     URL.revokeObjectURL(v.src);

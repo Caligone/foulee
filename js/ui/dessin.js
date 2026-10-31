@@ -36,7 +36,7 @@ export const PHOTO = {
   shank_deg: 'ton tibia', foot_deg: 'ton pied', knee_ic: 'ta jambe sous le genou', trunk: 'ton buste', heel_hip_pct: 'l\'écart talon-bassin',
 };
 export async function drawTarget(canvas, fr, k, v, dir, col) {
-  const S = canvas.width, ctx = canvas.getContext('2d'), R = REPERES[k], band = bande(R);
+  const S = canvas.width, ctx = canvas.getContext('2d'), R = REPERES[k], band = R.nature === 'aucun' ? null : bande(R);
   const lm = fr.lm; if (!lm) return;
   // zoom sur la zone utile : bassin et jambes, plus les épaules pour le buste
   const ids = [23, 24, 25, 26, 27, 28, 29, 30, 31, 32, ...(k === 'trunk' ? [0, 11, 12] : [])];
@@ -76,41 +76,4 @@ export async function drawTarget(canvas, fr, k, v, dir, col) {
   const cib = R.nature === 'indicatif' ? `Seuil indicatif : moins de ${fmt(R.seuil)} %` : band ? `Repère : ${fmt(band[0], 1).replace(',0', '')} à ${fmt(band[1], 1).replace(',0', '')}°` : '';
   tag(ctx, lab, 10, 26, S, col, '#111');
   if (cib) tag(ctx, cib, 10, 26 + S / 26 + 16, S, green, '#111');
-}
-
-// image clé de contact : tibia, pied, verticale du bassin, distance talon-bassin
-export async function drawContact(canvas, fr, step, dir, title) {
-  const S = canvas.width, ctx = canvas.getContext('2d');
-  await drawFrame(ctx, { ...fr, lm: null }, S);
-  const [TX, TY, ts] = fr.view, k = S / ts, T = (p) => [(p[0] - TX) * k, (p[1] - TY) * k];
-  const lm = fr.lm; if (!lm) return;
-  const hip = [(lm[23][0] + lm[24][0]) / 2, (lm[23][1] + lm[24][1]) / 2];
-  const side = (dir * lm[31][0] >= dir * lm[32][0]) ? 0 : 1; // pied avant dans le sens de course
-  const kn = lm[25 + side], an = lm[27 + side], he = lm[29 + side], to = lm[31 + side];
-  const line = (a, b, c, w) => { ctx.strokeStyle = c; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(...T(a)); ctx.lineTo(...T(b)); ctx.stroke(); };
-  line(hip, [hip[0], he[1] + 4], '#55b883', 2);
-  line(kn, an, '#f0b93a', 5);
-  line(he, to, '#e070e0', 5);
-  ctx.setLineDash([6, 5]); line([kn[0], kn[1]], [kn[0], an[1]], '#cfd6da', 1.5); ctx.setLineDash([]);
-  line([hip[0], he[1] + 10], [he[0], he[1] + 10], '#55b883', 3);
-  for (const p of [hip, kn, an, he, to]) { const [x, y] = T(p); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x, y, 4, 0, 7); ctx.fill(); }
-  tag(ctx, title, 10, 26, S);
-  const y0 = S - 3 * (S / 26 + 16);
-  tag(ctx, `Tibia ${fmt(step.shank_deg)}°`, 10, y0, S, '#f0b93a', '#111');
-  tag(ctx, `Pied ${fmt(step.foot_deg)}°`, 10, y0 + S / 26 + 16, S, '#e070e0', '#111');
-  tag(ctx, `Talon/bassin ${fmt(step.heel_hip_cm)} cm`, 10, y0 + 2 * (S / 26 + 16), S, '#55b883', '#111');
-}
-
-export async function drawFrontal(canvas, fr, c, view) {
-  const S = canvas.width, ctx = canvas.getContext('2d');
-  await drawFrame(ctx, fr, S);
-  const [TX, TY, ts] = fr.view, k = S / ts, T = (p) => [(p[0] - TX) * k, (p[1] - TY) * k];
-  const lm = fr.lm; if (!lm) return;
-  const hm = [(lm[23][0] + lm[24][0]) / 2, (lm[23][1] + lm[24][1]) / 2];
-  const foot = Math.max(lm[31][1], lm[32][1]);
-  ctx.strokeStyle = '#55b883'; ctx.lineWidth = 2; ctx.setLineDash([6, 5]);
-  ctx.beginPath(); ctx.moveTo(...T(hm)); ctx.lineTo(...T([hm[0], foot + 6])); ctx.stroke(); ctx.setLineDash([]);
-  tag(ctx, `Appui ${c.side}`, 10, 26, S);
-  tag(ctx, `Pied ${c.lateral >= 0 ? 'de son côté' : 'croise'} (${fmt(c.lateral)} %)`, 10, S - 20, S, c.lateral < 0 ? '#e0a52c' : '#55b883', '#111');
-  if (view === 'dos') tag(ctx, `Bassin ${fmt(c.drop, 1)}°`, 10, S - 20 - (S / 26 + 16), S);
 }

@@ -7,7 +7,7 @@ ensuite l'application fonctionne entièrement hors ligne.
 
 Options : [port] --no-browser --offline (ne rien télécharger)
 """
-import http.server, os, socketserver, sys, threading, urllib.request, webbrowser
+import http.server, os, socketserver, sys, threading, urllib.parse, urllib.request, webbrowser
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 os.chdir(ROOT)
@@ -60,6 +60,14 @@ class Handler(http.server.SimpleHTTPRequestHandler):
 
     def log_message(self, *args):
         pass
+
+    # ne sert que l'application : ni l'historique git, ni les exports de test (données personnelles), ni les fichiers cachés
+    def send_head(self):
+        chemin = urllib.parse.unquote(self.path.split('?')[0].split('#')[0])
+        if any(part.startswith('.') for part in chemin.split('/') if part) or chemin.startswith('/test/'):
+            self.send_error(404)
+            return None
+        return super().send_head()
 
 
 class Server(socketserver.ThreadingTCPServer):

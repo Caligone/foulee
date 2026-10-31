@@ -31,7 +31,10 @@ const rapport = (a) => afficherRapport(a, {
 
 // ---------- formulaire ----------
 const drop = $('#drop');
-function setFile(f) { file = f; $('#file-name').textContent = f ? `${f.name} · ${(f.size / 1e6).toFixed(1)} Mo` : ''; $('#go').disabled = !f; }
+function setFile(f) {
+  file = f; $('#file-name').textContent = f ? `${f.name} · ${(f.size / 1e6).toFixed(1)} Mo` : ''; $('#go').disabled = !f;
+  $('#go-hint').textContent = f ? 'Renseigne ta taille puis lance l\'analyse : de 30 s à 4 min selon la durée et la cadence d\'images.' : 'Choisis une vidéo pour commencer.';
+}
 $('#file').addEventListener('change', (e) => setFile(e.target.files[0]));
 ['dragenter', 'dragover'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('over'); }));
 ['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
@@ -40,11 +43,19 @@ try { const s = JSON.parse(localStorage.getItem('foulee-profile') || '{}'); if (
 $('#form').addEventListener('submit', (e) => { e.preventDefault(); run().catch(fail); });
 $('#cancel').addEventListener('click', () => enCours?.abort());
 
+let etape = { i: -1, debut: 0 };
 function stepUI(i, msg) {
+  if (i !== etape.i) { etape = { i, debut: performance.now() }; bar(0); }
   $('#steps').innerHTML = ETAPES.map((s, k) => `<li class="${k < i ? 'done' : k === i ? 'active' : ''}">${s}</li>`).join('');
   if (msg !== undefined) $('#run-msg').textContent = msg;
 }
-const bar = (x) => { $('#bar').style.width = `${Math.round(x * 100)}%`; };
+// avancement de l'étape en cours, avec le temps restant estimé d'après le rythme depuis son début
+function bar(x) {
+  const pct = Math.min(100, Math.round(x * 100));
+  $('#bar').style.width = `${pct}%`; $('#progress').setAttribute('aria-valuenow', pct);
+  const reste = x > 0.05 ? (performance.now() - etape.debut) / x * (1 - x) / 1000 : NaN;
+  $('#run-pct').textContent = x > 0 ? `${ETAPES[etape.i] ?? ''} · ${pct} %${Number.isFinite(reste) && reste > 5 ? ` · environ ${reste > 90 ? `${Math.round(reste / 60)} min` : `${Math.round(reste / 5) * 5} s`} restantes` : ''}` : '';
+}
 function fail(err) {
   console.error(err); enCours = null; show('new');
   const el = $('#form-err'); el.hidden = false; el.textContent = err.message || String(err);
@@ -53,7 +64,7 @@ function fail(err) {
 async function run() {
   if (!file || enCours) return;
   enCours = new AbortController();
-  $('#form-err').hidden = true; show('run'); bar(0);
+  $('#form-err').hidden = true; show('run'); etape = { i: -1, debut: 0 }; $('#run-pct').textContent = '';
   try { localStorage.setItem('foulee-profile', JSON.stringify({ h: $('#height').value, w: $('#weight').value })); } catch {}
   const live = $('#live').getContext('2d');
   let vues = 0;
@@ -63,7 +74,7 @@ async function run() {
   }, {
     signal: enCours.signal, onStep: stepUI, onProgress: bar,
     onFrame: (x, crop, lm, X0, Y0, side) => {
-      if (vues++ % 2) return; // aperçu une image sur deux
+      const t = performance.now(); if (t - vues < 66) return; vues = t; // aperçu limité à ~15 images/s
       live.drawImage(crop, 0, 0, 384, 384);
       if (lm) { live.fillStyle = '#f0b93a'; for (const q of lm.slice(11)) { live.beginPath(); live.arc((q[0] - X0) / side * 384, (q[1] - Y0) / side * 384, 3, 0, 7); live.fill(); } }
     },
@@ -80,10 +91,13 @@ async function mettreAJour(list) {
   // les mesures d'une version antérieure sont recalculées depuis les points de pose, une fois pour toutes
   const vieilles = list.filter((x) => (x.algo ?? 1) !== ALGO && !ignorees.has(x.id));
   for (const x of vieilles) {
-    const a = await getAnalysis(x.id);
-    if (!a || a.legacy) { ignorees.add(x.id); continue; }
-    const { legacy, recalcule, ...b } = aJour(a);
-    await saveAnalysis(b);
+    try {
+      const a = await getAnalysis(x.id);
+      if (!a || a.legacy) { ignorees.add(x.id); continue; }
+      const { legacy, recalcule, ...b } = aJour(a);
+      if (b.algo !== ALGO) { ignorees.add(x.id); continue; } // rien à recalculer (pas de points de pose)
+      await saveAnalysis(b);
+    } catch (e) { console.warn('mise à jour impossible', x.id, e); ignorees.add(x.id); } // l'historique reste affiché
   }
   return vieilles.length > 0;
 }
