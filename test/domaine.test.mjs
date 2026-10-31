@@ -136,3 +136,12 @@ test('bilan : pas de piste d\'entraînement tirée d\'une vue de biais ; la cade
   assert.ok(b.constats.some((c) => c.label === 'À vérifier'));
   assert.ok(!b.constats.some((c) => c.t === 'Dans la moyenne' && /cadence/.test(c.d)));
 });
+
+test('qualité : la caméra qui bouge est signalée', async () => {
+  const { qualite, cameraBouge } = await import('../js/domaine/qualite.js');
+  assert.equal(cameraBouge({ agite: 0.05 }), false);
+  assert.equal(cameraBouge({ agite: 0.6 }), true);
+  assert.equal(cameraBouge(undefined), false); // analyses anciennes, sans la mesure
+  const q = qualite({ fps: 60, mouvement: { agite: 0.6 }, passes: [] });
+  assert.ok(q.some((x) => !x.ok && /bouge/.test(x.texte)));
+});

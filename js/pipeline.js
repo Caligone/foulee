@@ -4,6 +4,7 @@
 import { loadPose, openVideo, scanVideo, findPassages, poseOnPassage } from './infra/video.js';
 import { openFrames } from './infra/images.js';
 import { ALGO, mesurer } from './domaine/analyse.js';
+import { cameraBouge } from './domaine/qualite.js';
 
 export const ETAPES = ['Lecture de la vidéo', 'Chargement du modèle de pose', 'Repérage des passages', 'Estimation de pose image par image', 'Calcul des mesures'];
 const poses = {};
@@ -34,7 +35,10 @@ export async function analyser(file, options, { onStep = () => {}, onProgress = 
     onStep(2, 'Lecture accélérée de la vidéo pour repérer le coureur…');
     const scan = await scanVideo(v, fps, (x) => { stop(); onProgress(x); }, source);
     const passages = findPassages(scan.boxes);
-    if (!passages.length) throw new Error("Aucun passage de coureur exploitable n'a été repéré. Vérifie que le téléphone est immobile et que tu restes au moins 1 s dans le champ.");
+    const bouge = cameraBouge(scan.mouvement);
+    if (!passages.length) throw new Error(bouge
+      ? "L'image bouge presque partout : caméra tenue à la main, qui suit le coureur, ou plan coupé au montage. Pose le téléphone sur un support fixe et laisse-toi traverser le champ."
+      : "Aucun passage de coureur exploitable n'a été repéré. Vérifie que le téléphone est immobile et que tu restes au moins 2 s dans le champ.");
 
     const nb = (k) => passages.filter((p) => p.kind === k).length, vues = [['profil', 'de profil'], ['face', 'de face'], ['dos', 'de dos']];
     onStep(3, `${passages.length} passage${passages.length > 1 ? 's' : ''} trouvé${passages.length > 1 ? 's' : ''} : ${vues.filter(([k]) => nb(k)).map(([k, t]) => `${nb(k)} ${t}`).join(', ')}`);
@@ -57,7 +61,7 @@ export async function analyser(file, options, { onStep = () => {}, onProgress = 
       id: crypto.randomUUID?.() ?? String(Date.now()), date: Date.now(), videoDate: file.lastModified, label: options.label ?? '',
       videoName: file.name, height: options.height, weight: options.weight ?? null, fps, fpsNote, duration: v.duration,
       size: [v.videoWidth, v.videoHeight], model: pose.modelPath.includes('heavy') ? 'heavy' : 'autre', delegate: pose.delegate,
-      decoder: source.kind, vfr: source.vfr ?? null, algo: ALGO, passes,
+      decoder: source.kind, vfr: source.vfr ?? null, mouvement: scan.mouvement, algo: ALGO, passes,
     };
   } finally {
     URL.revokeObjectURL(v.src);

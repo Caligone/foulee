@@ -7,6 +7,10 @@ import { mediane } from './reperes.js';
 // seuils de l'appli (pas de norme publiée) : en dessous de ~150 px de jambe, 1 px vaut près de 1 cm à l'échelle du coureur
 export const JAMBE_MIN_PX = 150;
 export const FPS_MIN = 50;
+// caméra qui bouge : part de l'image « toujours agitée » pendant le repérage. Seuil de l'appli, calibré le 31/10 :
+// ≤ 5 % sur des vidéos filmées téléphone fixe, 36 à 90 % sur des clips à caméra mobile ou plans serrés.
+export const AGITATION_MAX = 0.25;
+export const cameraBouge = (mv) => (mv?.agite ?? 0) > AGITATION_MAX;
 
 export function qualite(a) {
   const prof = profils(a), fr = frontaux(a), points = [];
@@ -15,6 +19,7 @@ export function qualite(a) {
 
   if (a.fps >= FPS_MIN) ok(`${Math.round(a.fps)} images/s`);
   else ko(`${Math.round(a.fps)} images/s : temps de contact et de vol à ± ${Math.round(1000 / a.fps)} ms`, 'Filme à 60 images/s ou plus (120 ou 240 en ralenti, transféré en original).');
+  if (cameraBouge(a.mouvement)) ko(`L'image bouge sur ${Math.round(a.mouvement.agite * 100)} % de sa surface : caméra qui tremble ou suit le coureur ; appuis et angles peu fiables`, 'Pose le téléphone sur un support fixe ; ne le tiens pas à la main et ne suis pas le coureur.');
   if (a.vfr) ko('Cadence d\'images irrégulière : temps de contact et de vol moins fiables', 'Désactive le mode basse lumière ou le ralenti automatique, ou filme avec plus de lumière.');
   if (a.size?.[1] > a.size?.[0]) ko('Vidéo en portrait : le champ est étroit, peu d\'appuis par passage', 'Tourne le téléphone à l\'horizontale (paysage).');
   if (a.decoder === 'seek') ko('Décodage par sauts : temps moins précis', 'Ouvre l\'appli dans Chrome ou Safari, ou exporte la vidéo en MP4 H.264.');

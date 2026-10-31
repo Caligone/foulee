@@ -137,6 +137,11 @@ export async function scanVideo(v, fps, onProgress, source) {
   for (let i = 0; i < freq.length; i++) freq[i] /= masks.length;
   const clutter = new Uint8Array(LW * LH);
   for (let i = 0; i < freq.length; i++) clutter[i] = freq[i] > 0.12 ? 1 : 0;
+  // caméra qui bouge : avec un téléphone fixe, seul le coureur (et un peu de feuillage) diffère du fond ;
+  // si la caméra tremble ou suit le coureur, une grande partie de l'image diffère en permanence
+  const couv = masks.map((m) => { let c = 0; for (let i = 0; i < m.length; i++) c += m[i]; return c / m.length; }).sort((a, b) => a - b);
+  let agite = 0; for (let i = 0; i < clutter.length; i++) agite += clutter[i];
+  const mouvement = { agite: agite / clutter.length, couverture: couv[Math.floor(couv.length * 0.75)] ?? 0 };
   const cands = masks.map((m) => blobs(m, clutter, LW, LH));
   // suivi : on garde le candidat cohérent avec la position précédente, sinon le plus gros
   const boxes = []; let prev = null;
@@ -155,7 +160,7 @@ export async function scanVideo(v, fps, onProgress, source) {
   }
   const scale = W / LW;
   for (const b of boxes) if (b.ok) { b.x0 *= scale; b.x1 *= scale; b.y0 *= scale; b.y1 *= scale; b.cx *= scale; }
-  return { boxes, bg, freq, cands, times, LW, LH, W, H };
+  return { boxes, mouvement, LW, LH, W, H };
 }
 
 function fgMask(f, bg, W, H) {
