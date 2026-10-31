@@ -41,9 +41,9 @@ main{max-width:1060px;margin:0 auto;padding:28px max(16px,4vw) 80px}
 .compare{margin:16px 0}.compare .row{display:flex;gap:12px;flex-wrap:wrap}.compare h2{margin:0}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:20px;display:flex;flex-direction:column;gap:16px;min-width:0}
 .card.center{align-items:center}
-.drop{border:2px dashed var(--line);border-radius:8px;padding:30px 16px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;text-align:center;transition:border-color .15s}
+.drop{position:relative;border:2px dashed var(--line);border-radius:8px;padding:30px 16px;display:flex;flex-direction:column;align-items:center;gap:6px;cursor:pointer;text-align:center;transition:border-color .15s}
 .drop:hover,.drop.over{border-color:var(--accent)}
-.drop input{position:absolute;width:1px;height:1px;opacity:0}
+.drop input{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer}
 .drop-t{font:600 1.3rem var(--display)}
 .drop-s{color:var(--muted);font-size:.92rem;word-break:break-all}
 .grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}
