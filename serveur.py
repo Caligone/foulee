@@ -61,10 +61,13 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def log_message(self, *args):
         pass
 
-    # ne sert que l'application : ni l'historique git, ni les exports de test (données personnelles), ni les fichiers cachés
+    # liste blanche : l'application et ses dépendances seulement (ni .git, ni test/ et ses données personnelles,
+    # ni les notes du projet). Comparaison en minuscules : le disque du Mac ne distingue pas la casse.
+    SERVIS = ('/', '/index.html', '/css/', '/js/', '/vendor/', '/favicon.ico')
+
     def send_head(self):
-        chemin = urllib.parse.unquote(self.path.split('?')[0].split('#')[0])
-        if any(part.startswith('.') for part in chemin.split('/') if part) or chemin.startswith('/test/'):
+        chemin = os.path.normpath(urllib.parse.unquote(self.path.split('?')[0].split('#')[0])).lower()
+        if chemin != '/' and not any(chemin == s.rstrip('/') or chemin.startswith(s) for s in self.SERVIS if s != '/'):
             self.send_error(404)
             return None
         return super().send_head()

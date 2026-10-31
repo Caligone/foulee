@@ -36,6 +36,7 @@ function setFile(f) {
   $('#go-hint').textContent = f ? 'Renseigne ta taille puis lance l\'analyse : de 30 s à 4 min selon la durée et la cadence d\'images.' : 'Choisis une vidéo pour commencer.';
 }
 $('#file').addEventListener('change', (e) => setFile(e.target.files[0]));
+if ($('#file').files[0]) setFile($('#file').files[0]); // fichier choisi avant le chargement du script
 ['dragenter', 'dragover'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('over'); }));
 ['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
 drop.addEventListener('drop', (e) => { const f = e.dataTransfer.files[0]; if (f) setFile(f); });
