@@ -1,0 +1,14 @@
+{
+  "name": "foulee",
+  "private": true,
+  "type": "module",
+  "description": "Analyse de foulée locale. Pas d'étape de build : ces scripts servent seulement au développement.",
+  "scripts": {
+    "test": "node --test test/",
+    "types": "tsc -p jsconfig.json",
+    "check": "npm run types && npm test"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}

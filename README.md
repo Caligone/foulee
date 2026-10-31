@@ -75,7 +75,7 @@ js/infra/               vidéo et pose (video.js), accès image par image (image
 js/pipeline.js          d'un fichier vidéo à une Analyse, sans toucher à la page (annulable)
 js/ui/                  navigation et historique (app.js), rapport (rapport.js), canvas (dessin.js)
 js/format.js            nombres et texte
-test/                   node --test test/
+test/                   npm run check (types JSDoc + node --test) ; package.json ne sert qu'au développement
 serveur.py              serveur local + téléchargement des dépendances
 vendor/                 MediaPipe et modèles (téléchargés, non versionnés)
 ```

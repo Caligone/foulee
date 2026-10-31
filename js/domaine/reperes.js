@@ -14,6 +14,14 @@
 // Les repères de Malisoux 2023 suivent l'allure : moyenne recentrée sur la vitesse du coureur (bornée à la plage
 // étudiée), et écart-type résiduel une fois l'allure prise en compte, sd·√(1 − R²).
 
+/**
+ * @typedef {{ label: string, unit: string, sc: [number, number], fiabilite: string, what: string, ref: string,
+ *   nature: 'publie' | 'indicatif' | 'aucun', sens?: 'bas' | 'haut' | 'deux', m?: number, sd?: number, band?: [number, number],
+ *   seuil?: number, pente?: number, sdAllure?: number, classes?: [number, string][] }} Repere
+ * @typedef {'ok' | 'hors' | 'loin' | 'info' | 'na'} Statut
+ * @typedef {{ speed?: number }} Contexte  vitesse du coureur en m/s (repères selon l'allure)
+ */
+/** @type {Record<string, Repere>} */
 export const REPERES = {
   cadence: {
     label: 'Cadence', unit: 'pas/min', sc: [140, 195], fiabilite: 'haute',
@@ -120,6 +128,7 @@ export function bandeLarge(k, ctx) {
 export const classe = (R, v) => R.classes?.find(([lim]) => v < lim)?.[1];
 
 // écart au repère dans le sens qui pose question (0 dans le repère)
+/** @param {string} k @param {number} v @param {Contexte} [ctx] */
 export function ecart(k, v, ctx) {
   const R = REPERES[k];
   if (!R || R.nature === 'aucun' || !Number.isFinite(v)) return 0;
@@ -127,6 +136,7 @@ export function ecart(k, v, ctx) {
   return Math.max(R.sens !== 'haut' ? b0 - v : 0, R.sens !== 'bas' ? v - b1 : 0, 0);
 }
 
+/** @param {string} k @param {number} v @param {Contexte} [ctx] @returns {Statut} */
 export function statut(k, v, ctx) {
   const R = REPERES[k];
   if (!R || !Number.isFinite(v)) return 'na';
@@ -153,6 +163,7 @@ export const LIBELLES = {
 };
 // libellé d'une mesure : où se situe la valeur par rapport à la plupart des coureurs, en langage courant.
 // « la moyenne » pour un repère de population, « le repère » pour un critère de technique sans moyenne publiée.
+/** @param {string} k @param {Statut} st @param {number} [v] @param {Contexte} [ctx] @returns {string} */
 export function libelle(k, st, v, ctx) {
   const R = REPERES[k];
   if (!R || st === 'na' || st === 'info' || !Number.isFinite(v)) return LIBELLES[st];

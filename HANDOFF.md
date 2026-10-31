@@ -12,6 +12,13 @@ Tu reprends **Foulée**, une app web d'analyse de foulée à partir d'une vidéo
   - **Face / dos** : appuis = pied immobile, côté attribué par la géométrie, chute du bassin corrigée de l'inclinaison caméra (médiane), alerte si la vue est de biais. Appuis aux jambes masquées écartés ; passage non chiffré si plus d'un tiers des appuis se chevauchent.
 - `js/infra/video.js` : ouverture vidéo, estimation des i/s, scan en lecture ×4 pour un fond médian, soustraction de fond, classement des passages, pose image par image sur un recadrage de 512 px.
 
+## Fait le 31/10/2026 (revues 1 à 3)
+- Statut : écart en écarts-types combinés √(sd² + marge²), écart-type résiduel à allure connue, vitesse bornée 7–15 km/h ; libellés orientés en langage courant.
+- Synthèse (« À retenir », constats triés par gravité) calculée dans `recommandations.js`, testée en Node.
+- Caméra qui bouge : indicateur sur le fond seul (coureur exclu, seuil 5 %). Mode caméra mobile : appuis datés par rapport au bassin (Zeni 2008), cadence gardée, angles indicatifs, contact / allure / rebond non rendus. Limite : le repérage des passages repose encore sur la soustraction de fond, donc une vraie caméra qui suit donne souvent « aucun passage ». À faire : repérage par MediaPipe sur l'image entière.
+- Vitesse mesurée : ≈ 20 ms/image d'inférence sur 21 ; deux analyses en parallèle = 44 s contre 2 × 25 s (GPU presque saturé). Allègements testés et refusés : marges de profil réduites (cadence 177 → 162 sur un passage), face/dos à 60 ou 120 i/s (passage devenu « jambes confondues »).
+- Types : JSDoc sur `js/domaine/` vérifié par `npm run types`.
+
 ## Fait le 30/10/2026
 - Poussé sur `origin/main`. Téléchargement de `vendor/` OK, avec en plus les polices et mp4box. Modèles officiels `full` et `heavy` OK dans Chrome (GPU).
 - **Accès aux images** : nouveau `js/frames.js`. WebCodecs + mp4box si le navigateur décode le codec, ce qui donne des images exactes, l'horodatage réel, la cadence lue dans le conteneur et la rotation de la piste appliquée. Sinon, repli sur les sauts dans `<video>` (Firefox + HEVC : pas de HEVC en WebCodecs, ~270 ms par saut).

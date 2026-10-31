@@ -7,6 +7,30 @@
 
 import { profileMetrics, frontalMetrics } from './mesures.js';
 
+/**
+ * @typedef {[number, number, number]} Point           x, y en pixels vidéo, visibilité 0..1
+ * @typedef {{ f: number, lm: Point[] | null, thumb?: Blob | null, view?: [number, number, number] }} Image
+ * @typedef {{ n: number, f_ic: number, f_to: number, contact_ms: number, foot_deg: number, shank_deg: number,
+ *   knee_ic: number, knee_max: number, heel_hip_cm: number, heel_hip_pct: number, thigh_to: number, trunk: number,
+ *   step_ms?: number, flight_ms?: number }} PasProfil
+ * @typedef {{ side: 'gauche' | 'droite', f0: number, f1: number, mt: number, lateral: number, drop: number }} ContactFrontal
+ * @typedef {{ view: 'profil', nSteps: number, steps: PasProfil[], footsOk: boolean, visibleShare: number, cadence: number,
+ *   speed: number, pace: number, contact_ms: number, duty: number, vosc_cm: number, leg_px: number, cameraMobile?: boolean,
+ *   indicatifs?: string[], [mesure: string]: any }} MesuresProfil
+ * @typedef {{ view: 'face' | 'dos', contacts: ContactFrontal[], crossings: number, lateralMed: number,
+ *   drop: { gauche: number, droite: number }, obliqueWarn: boolean, unreliable: boolean, confused: number,
+ *   masked: number, roll: number, [mesure: string]: any }} MesuresFrontal
+ * @typedef {{ error: string }} EchecMesure
+ * @typedef {{ kind: 'profil' | 'face' | 'dos', dir: number, t0: number, t1: number, frames: Image[],
+ *   metrics: MesuresProfil | MesuresFrontal | EchecMesure | null, cameraMobile?: boolean }} Passage
+ * @typedef {{ id: string, date: number, height: number, fps: number, algo?: number, passes: Passage[],
+ *   size?: [number, number], decoder?: string, vfr?: boolean | null, mouvement?: { agite: number, fond?: number },
+ *   legacy?: boolean, recalcule?: boolean, [champ: string]: any }} Analyse
+ * @typedef {{ debut: number, fin: number, milieu: number, cote?: string, mesures: PasProfil | ContactFrontal }} Appui
+ * @typedef {Passage & { metrics: MesuresProfil }} PassageProfil     passage de profil exploitable
+ * @typedef {Passage & { metrics: MesuresFrontal }} PassageFrontal   passage de face ou de dos exploitable
+ */
+
 // à incrémenter à chaque changement de mesures.js qui modifie les résultats : les analyses plus anciennes sont recalculées
 export const ALGO = 2;
 export const MIN_APPUIS = 7; // moyenne d'au moins 7 pas pour une mesure 2D fiable (Dingenen 2018)
@@ -14,8 +38,9 @@ export const MIN_APPUIS = 7; // moyenne d'au moins 7 pas pour une mesure 2D fiab
 export const VUES = { profil: 'Profil', face: 'De face', dos: 'De dos' };
 
 // état d'un passage, de la raison la plus fondamentale à la plus fine
+/** @param {Passage} p @returns {string} */
 export function etat(p) {
-  const m = p.metrics;
+  const m = /** @type {any} */ (p.metrics); // état : on lit chaque forme possible des mesures
   if (!m) return 'trop court';
   if (m.error) return m.error === 'déplacement trop faible' ? 'immobile' : 'erreur';
   if (p.kind === 'profil') {
@@ -26,8 +51,10 @@ export function etat(p) {
   return m.contacts?.length ? 'exploitable' : 'aucun appui';
 }
 export const exploitable = (p) => etat(p) === 'exploitable';
-export const profils = (a) => a.passes.filter((p) => p.kind === 'profil' && exploitable(p));
-export const frontaux = (a) => a.passes.filter((p) => p.kind !== 'profil' && exploitable(p));
+/** @type {(a: { passes: Passage[] }) => PassageProfil[]} */
+export const profils = (a) => /** @type {PassageProfil[]} */ (a.passes.filter((p) => p.kind === 'profil' && exploitable(p)));
+/** @type {(a: { passes: Passage[] }) => PassageFrontal[]} */
+export const frontaux = (a) => /** @type {PassageFrontal[]} */ (a.passes.filter((p) => p.kind !== 'profil' && exploitable(p)));
 
 export const ETATS = {
   'trop court': 'passage trop court, ignoré',
@@ -40,19 +67,22 @@ export const ETATS = {
 };
 
 // appuis d'un passage, sous une seule forme quelle que soit la vue
+/** @param {Passage} p @returns {Appui[]} */
 export function appuis(p) {
-  const m = p.metrics || {};
+  const m = /** @type {any} */ (p.metrics || {});
   if (p.kind === 'profil') return (m.steps || []).map((s) => ({ debut: s.f_ic, fin: s.f_to, milieu: s.f_ic, mesures: s }));
   return (m.contacts || []).map((c) => ({ debut: c.f0, fin: c.f1, milieu: c.mt, cote: c.side, mesures: c }));
 }
 export const nbAppuis = (a) => profils(a).reduce((n, p) => n + p.metrics.nSteps, 0);
 
+/** @param {Passage} p @param {number} fps @param {number} height en mètres @returns {any} */
 export function mesurer(p, fps, height) {
   try { return p.kind === 'profil' ? profileMetrics(p.frames, fps, height, p.dir, { cameraMobile: !!p.cameraMobile }) : frontalMetrics(p.frames, fps, p.kind); }
   catch (e) { console.error(e); return { error: String(e) }; }
 }
 
 // recalcule les mesures depuis les points de pose si elles viennent d'une version antérieure de l'algorithme
+/** @param {Analyse} a @returns {Analyse} */
 export function aJour(a) {
   if ((a.algo ?? 1) === ALGO) return a;
   // sans points de pose, rien ne peut être recalculé : l'analyse garde sa version (et ses anciennes mesures)

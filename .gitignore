@@ -3,3 +3,4 @@ vendor/
 .DS_Store
 __pycache__/
 test/fixtures/
+node_modules/

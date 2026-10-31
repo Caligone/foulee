@@ -17,10 +17,18 @@ const plusGrand = (...v) => { const f = v.filter(Number.isFinite); return f.leng
 const plage = (k, ctx) => { const [a, b] = bande(REPERES[k], ctx); return `${fmt(a)} à ${fmt(b)} ${REPERES[k].unit}`; };
 const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
 
+/**
+ * @typedef {{ role: 'ecart' | 'verifier' | 'comparer' | 'manque', st: import('./reperes.js').Statut, label?: string,
+ *   cle?: string, t: string, d: string }} Constat
+ * @typedef {{ cle: string, vise: string[], t: string, li: string[], why: string, sources: [string, number][],
+ *   objectif?: { k: string, min: number, max: number } }} Piste
+ */
+/** @param {{ passes: import('./analyse.js').Passage[] }} a */
 export function bilan(a) {
   const prof = profils(a), fr = frontaux(a);
   const ty = typique(prof.map((p) => p.metrics));
-  const constats = [], exercices = [];
+  /** @type {Constat[]} */ const constats = [];
+  /** @type {Piste[]} */ const exercices = [];
 
   const mobile = prof.some((p) => p.metrics.cameraMobile);
   if (prof.length && mobile) {
