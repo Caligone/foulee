@@ -5,3 +5,5 @@ __pycache__/
 test/fixtures/
 node_modules/
 *.png
+__pycache__/
+_site/

@@ -1,0 +1,20 @@
+name: CI
+on:
+  push:
+  pull_request:
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # types du domaine (tsc --noEmit) puis tests ; la non-régression sur vraies vidéos est ignorée sans test/fixtures/
+      - run: npm run check
+      - name: Syntaxe des modules de l'interface
+        run: for f in js/*.js js/*/*.js; do node --check "$f"; done
+      - name: Syntaxe du serveur local
+        run: python3 -m py_compile serveur.py

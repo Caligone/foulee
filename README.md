@@ -9,19 +9,28 @@ La vidéo n'est jamais envoyée nulle part : tout le calcul se fait localement, 
 
 ## Démarrer
 
-Prérequis : Python 3 (déjà présent sur macOS et Linux) et un navigateur récent (Chrome, Edge ou Safari).
+**En ligne** : [caligone.github.io/foulee](https://caligone.github.io/foulee/), dans Chrome, Edge ou Safari. La page charge MediaPipe et le modèle de pose (≈ 50 Mo) depuis un CDN ; la vidéo, elle, reste dans ton navigateur.
+
+**Hors ligne** (Python 3) :
 
 ```sh
-git clone https://github.com/<toi>/foulee.git
+git clone https://github.com/Caligone/foulee.git
 cd foulee
 python3 serveur.py
 ```
 
-Ou en double-clic : `Lancer Foulée.command` sur macOS (clic droit › Ouvrir la première fois), `lancer.bat` sous Windows.
-
-Au premier lancement, `serveur.py` télécharge MediaPipe Tasks Vision et le modèle de pose dans `vendor/` (≈ 50 Mo). Ensuite, plus rien ne sort de ta machine : `python3 serveur.py --offline` fonctionne sans connexion. Le serveur n'écoute que sur `127.0.0.1`.
+Au premier lancement, `serveur.py` télécharge MediaPipe et le modèle dans `vendor/`. Ensuite, `python3 serveur.py --offline` fonctionne sans connexion. Le serveur n'écoute que sur `127.0.0.1`.
 
 > Les `.MOV` d'iPhone (HEVC) se lisent dans Safari et dans Chrome sur Mac. Ailleurs, exporte en MP4 H.264, ou règle l'iPhone sur Réglages › Appareil photo › Formats › « Le plus compatible ».
+
+## Développer
+
+```sh
+npm ci
+npm run check   # types du domaine (JSDoc, tsc --noEmit) puis tests (node --test)
+```
+
+Il n'y a pas d'étape de build : `index.html`, `css/` et `js/` sont servis tels quels. La CI lance `npm run check` à chaque push ; chaque push sur `main` publie le site sur GitHub Pages.
 
 ## Filmer
 
