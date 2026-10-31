@@ -206,17 +206,20 @@ async function renderKeys(a, prof, fr) {
   if (!box.children.length) box.innerHTML = '<p class="empty">Pas d\'image clé disponible.</p>';
 }
 
+// un seul lecteur à la fois : le minuteur d'un rapport précédent continuerait d'écrire dans le nouveau
+let timer = null;
 function setupPlayer(a) {
+  clearInterval(timer); timer = null;
   const c = $('#pc'), ctx = c.getContext('2d'), S = c.width;
-  let pi = 0, i = 0, timer = null;
-  const range = $('#prange');
+  let pi = 0, i = 0;
+  const range = $('#prange'), read = $('#pread');
   const stanceOf = (p, f) => p.kind === 'profil' ? (p.metrics?.steps || []).some((s) => f >= s.f_ic && f <= s.f_to) : (p.metrics?.contacts || []).some((s) => f >= s.f0 && f <= s.f1);
   const kneeAng = (lm, s) => { const h = lm[23 + s], k = lm[25 + s], an = lm[27 + s]; const u = [h[0] - k[0], h[1] - k[1]], w = [an[0] - k[0], an[1] - k[1]]; return 180 - Math.acos((u[0] * w[0] + u[1] * w[1]) / Math.hypot(...u) / Math.hypot(...w)) * 180 / Math.PI; };
   async function draw() {
     const p = a.passes[pi], fr = p.frames[i]; if (!fr) return;
     await drawFrame(ctx, fr, S, { label: `${KIND[p.kind]} · image ${fr.f}`, stance: stanceOf(p, fr.f) });
     range.value = i;
-    $('#pread').innerHTML = `Temps <b>${fmt(fr.f / a.fps, 2)} s</b> · image <b>${i + 1}/${p.frames.length}</b>` + (fr.lm ? `<br>Flexion genou (étiquettes modèle) G <b>${fmt(kneeAng(fr.lm, 0))}°</b> · D <b>${fmt(kneeAng(fr.lm, 1))}°</b>` : '<br>Pas de pose détectée sur cette image');
+    read.innerHTML = `Temps <b>${fmt(fr.f / a.fps, 2)} s</b> · image <b>${i + 1}/${p.frames.length}</b>` + (fr.lm ? `<br>Flexion genou (étiquettes modèle) G <b>${fmt(kneeAng(fr.lm, 0))}°</b> · D <b>${fmt(kneeAng(fr.lm, 1))}°</b>` : '<br>Pas de pose détectée sur cette image');
   }
   const stop = () => { clearInterval(timer); timer = null; $('#pplay').textContent = 'Lecture'; };
   // ouvre sur le premier contact (à défaut, la première pose) plutôt que sur l'entrée dans le champ
