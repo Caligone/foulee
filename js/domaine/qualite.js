@@ -7,10 +7,11 @@ import { mediane } from './reperes.js';
 // seuils de l'appli (pas de norme publiée) : en dessous de ~150 px de jambe, 1 px vaut près de 1 cm à l'échelle du coureur
 export const JAMBE_MIN_PX = 150;
 export const FPS_MIN = 50;
-// caméra qui bouge : part de l'image « toujours agitée » pendant le repérage. Seuil de l'appli, calibré le 31/10 :
-// ≤ 5 % sur des vidéos filmées téléphone fixe, 36 à 90 % sur des clips à caméra mobile ou plans serrés.
-export const AGITATION_MAX = 0.25;
-export const cameraBouge = (mv) => (mv?.agite ?? 0) > AGITATION_MAX;
+// caméra qui bouge : part du fond (coureur exclu) qui diffère de l'image de fond, en médiane sur la vidéo.
+// Seuil de l'appli, calibré le 31/10 : ≤ 1,6 % sur des vidéos téléphone fixe, 7,8 à 48 % sur 8 clips à caméra mobile.
+// Coureur exclu : un plan serré ou un tapis ne déclenchent pas l'alerte. Analyses plus anciennes : ancienne mesure.
+export const FOND_MAX = 0.05, AGITATION_MAX = 0.25;
+export const cameraBouge = (mv) => (mv?.fond !== undefined ? mv.fond > FOND_MAX : (mv?.agite ?? 0) > AGITATION_MAX);
 
 export function qualite(a) {
   const prof = profils(a), fr = frontaux(a), points = [];
@@ -19,9 +20,10 @@ export function qualite(a) {
 
   if (a.fps >= FPS_MIN) ok(`${Math.round(a.fps)} images/s`);
   else ko(`${Math.round(a.fps)} images/s : temps de contact et de vol à ± ${Math.round(1000 / a.fps)} ms`, 'Filme à 60 images/s ou plus (120 ou 240 en ralenti, transféré en original).');
-  if (cameraBouge(a.mouvement)) ko(`L'image bouge sur ${Math.round(a.mouvement.agite * 100)} % de sa surface : caméra qui tremble ou suit le coureur ; appuis et angles peu fiables`, 'Pose le téléphone sur un support fixe ; ne le tiens pas à la main et ne suis pas le coureur.');
+  if (cameraBouge(a.mouvement)) ko('Le décor bouge dans l\'image : caméra qui tremble ou qui suit le coureur ; appuis, allure et oscillation peu fiables', 'Pose le téléphone sur un support fixe ; ne le tiens pas à la main et ne suis pas le coureur.');
   if (a.vfr) ko('Cadence d\'images irrégulière : temps de contact et de vol moins fiables', 'Désactive le mode basse lumière ou le ralenti automatique, ou filme avec plus de lumière.');
-  if (a.size?.[1] > a.size?.[0]) ko('Vidéo en portrait : le champ est étroit, peu d\'appuis par passage', 'Tourne le téléphone à l\'horizontale (paysage).');
+  // portrait : gênant seulement de profil (champ étroit, peu d'appuis) ; de dos à 10 m, sans effet
+  if (a.size?.[1] > a.size?.[0] && nbAppuis(a) < MIN_APPUIS) ko('Vidéo en portrait : le champ est étroit, peu d\'appuis par passage', 'Tourne le téléphone à l\'horizontale (paysage).');
   if (a.decoder === 'seek') ko('Décodage par sauts : temps moins précis', 'Ouvre l\'appli dans Chrome ou Safari, ou exporte la vidéo en MP4 H.264.');
 
   if (!prof.length) ko('Aucun passage de profil exploitable', 'Passe de profil à 3–4 m du téléphone, pieds visibles en entier, au moins 1 s dans le champ.');

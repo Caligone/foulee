@@ -137,11 +137,9 @@ export async function scanVideo(v, fps, onProgress, source) {
   for (let i = 0; i < freq.length; i++) freq[i] /= masks.length;
   const clutter = new Uint8Array(LW * LH);
   for (let i = 0; i < freq.length; i++) clutter[i] = freq[i] > 0.12 ? 1 : 0;
-  // caméra qui bouge : avec un téléphone fixe, seul le coureur (et un peu de feuillage) diffère du fond ;
-  // si la caméra tremble ou suit le coureur, une grande partie de l'image diffère en permanence
-  const couv = masks.map((m) => { let c = 0; for (let i = 0; i < m.length; i++) c += m[i]; return c / m.length; }).sort((a, b) => a - b);
+  // agitation globale (gardée pour comparaison avec les analyses anciennes) : pixels « toujours en mouvement »
   let agite = 0; for (let i = 0; i < clutter.length; i++) agite += clutter[i];
-  const mouvement = { agite: agite / clutter.length, couverture: couv[Math.floor(couv.length * 0.75)] ?? 0 };
+  const mouvement = { agite: agite / clutter.length };
   const cands = masks.map((m) => blobs(m, clutter, LW, LH));
   // suivi : on garde le candidat cohérent avec la position précédente, sinon le plus gros
   const boxes = []; let prev = null;
@@ -158,6 +156,18 @@ export async function scanVideo(v, fps, onProgress, source) {
     const box = pick ? { t: times[i], ok: true, ...pick } : { t: times[i], ok: false };
     boxes.push(box); if (pick) prev = box;
   }
+  // agitation hors du coureur : part du fond qui diffère de l'image de fond, silhouette (élargie) exclue.
+  // Caméra fixe : presque rien, même avec un coureur proche ou sur tapis ; caméra qui bouge : une grande partie.
+  const hors = masks.map((m, i) => {
+    const b = boxes[i]; let n = 0, tot = 0;
+    const [x0, x1, y0, y1] = b.ok ? [b.x0 - 0.3 * (b.x1 - b.x0), b.x1 + 0.3 * (b.x1 - b.x0), b.y0 - 0.1 * (b.y1 - b.y0), b.y1 + 0.1 * (b.y1 - b.y0)] : [1, 0, 1, 0];
+    for (let y = 0; y < LH; y++) for (let x = 0; x < LW; x++) {
+      if (x >= x0 && x <= x1 && y >= y0 && y <= y1) continue;
+      tot++; n += m[y * LW + x];
+    }
+    return tot ? n / tot : 0;
+  }).sort((a, b) => a - b);
+  mouvement.fond = hors[hors.length >> 1] ?? 0; // médiane sur la vidéo
   const scale = W / LW;
   for (const b of boxes) if (b.ok) { b.x0 *= scale; b.x1 *= scale; b.y0 *= scale; b.y1 *= scale; b.cx *= scale; }
   return { boxes, mouvement, LW, LH, W, H };
