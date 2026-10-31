@@ -1,6 +1,7 @@
 {
   "name": "foulee",
   "private": true,
+  "license": "PolyForm-Noncommercial-1.0.0",
   "type": "module",
   "description": "Analyse de foulée locale. Pas d'étape de build : ces scripts servent seulement au développement.",
   "scripts": {

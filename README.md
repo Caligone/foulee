@@ -91,4 +91,6 @@ vendor/                 MediaPipe et modèles (téléchargés, non versionnés)
 
 ## Licence
 
-Apache 2.0. MediaPipe est © Google LLC, sous licence Apache 2.0.
+[PolyForm Noncommercial 1.0.0](LICENSE) : utilisation, modification et partage libres pour tout usage non commercial, à condition de garder la mention de [NOTICE](NOTICE) (« Required Notice ») qui cite l'auteur. Tout usage commercial demande mon accord.
+
+MediaPipe est © Google LLC, sous licence Apache 2.0.

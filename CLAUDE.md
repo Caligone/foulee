@@ -5,7 +5,7 @@ App web d'analyse de foulée à partir d'une vidéo de course, 100 % dans le nav
 ## Contraintes
 - La vidéo ne quitte jamais la machine. Seules les dépendances (MediaPipe, modèle, mp4box, polices) viennent d'un CDN si `vendor/` est absent.
 - Pas de build ni de framework : modules ES servis tels quels. TypeScript n'est qu'un vérificateur (JSDoc + `tsc --noEmit`).
-- Licence Apache 2.0 et NOTICE à garder.
+- Licence PolyForm Noncommercial 1.0.0 (pas d'usage commercial) ; la ligne « Required Notice » de NOTICE est l'obligation de citer l'auteur. MediaPipe reste sous Apache 2.0 : sa mention dans NOTICE est à garder.
 - Chaque repère est sourcé ; un seuil sans source est `nature: 'indicatif'` et affiché comme tel.
 - Vocabulaire de technique de course, jamais de diagnostic, de prévention ou de traitement de blessure (risque de dispositif médical) ; un test le vérifie. Public annoncé : coureurs et entraîneurs.
 
