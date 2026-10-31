@@ -20,7 +20,7 @@ Tu reprends **Foulée**, une app web d'analyse de foulée à partir d'une vidéo
 
 ## À faire, dans l'ordre
 1. **Tester d'autres vidéos** (prévu le 31/10) : portrait (rotation 90/270 jamais testée), H.264, 120/240 i/s, Safari.
-2. **Tests** : `node --test test/` (fait le 31/10). Tests du domaine dans le dépôt ; non-régression sur de vrais exports déposés dans `test/fixtures/` (hors dépôt, données personnelles). Reste à vérifier que WebCodecs donne le même résultat d'un lancement à l'autre.
+2. **Tests** : `node --test test/` (fait le 31/10). Tests du domaine dans le dépôt ; non-régression sur de vrais exports déposés dans `test/fixtures/` (hors dépôt, données personnelles). WebCodecs donne des poses identiques d'un lancement à l'autre (vérifié le 31/10 sur 7 802 images).
    - Repères selon l'allure (Malisoux 2023 publie des valeurs par vitesse) : pas encore fait, il faut la vitesse moyenne de l'étude.
 3. **Pour que l'app marche pour d'autres que moi** (audit du 30/10) :
    - Tapis de course impossible : il faut un déplacement latéral (`vx > 0,5` dans `profileMetrics`, `lat` dans `findPassages`). C'est un sujet de conception.
