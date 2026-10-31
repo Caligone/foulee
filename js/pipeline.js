@@ -15,6 +15,8 @@ export async function analyser(file, options, { onStep = () => {}, onProgress = 
   onStep(0, '');
   const v = await openVideo(file);
   try {
+    // le repérage garde ~175 Mo par minute de vidéo : au-delà de 10 min, l'onglet risque de planter
+    if (v.duration > 600) throw new Error(`Vidéo de ${Math.round(v.duration / 60)} min : coupe-la à moins de 10 min autour de tes passages (le repérage garde la vidéo en mémoire).`);
     const source = await openFrames(file, v);
     let fps = options.fps || source.fps, fpsNote = '';
     if (!fps) { fps = 30; fpsNote = 'Cadence d\'images non détectée : 30 i/s supposées. Renseigne-la si elle est différente.'; }

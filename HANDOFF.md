@@ -28,7 +28,7 @@ Tu reprends **Foulée**, une app web d'analyse de foulée à partir d'une vidéo
      mesurée en px/s, puis `profileMetrics` inchangé ; case « Sur tapis » qui saute le repérage des passages. Repères à nuancer sur tapis :
      pied plus à plat (−9,8°), genou plus fléchi au contact, oscillation plus faible, contact plus long (Van Hooren 2020).
      Alternative sourcée : contact = talon au plus bas / le plus en avant du bassin (Fellin 2010, Zeni 2008). ~60 lignes.
-   - Mémoire du scan : ≈ 140 Mo par minute de vidéo (320×180×4 octets toutes les 0,1 s), ce qui fait planter l'onglet au-delà de quelques minutes.
+   - Mémoire du scan : ≈ 175 Mo par minute de vidéo (images RGBA + masques). Garde-fou depuis le 31/10 : refus au-delà de 10 min. Vraie correction : deux passes (fond sur ~45 images, puis masques à la volée), à valider par un test du repérage qui n'existe pas encore.
    - Le statut du temps de contact ignore l'allure (−17 ms par km/h selon Malisoux 2023) : vérifier la vitesse moyenne de l'étude avant de corriger.
    - L'oscillation verticale est comparée aux hommes seulement : trouver une référence sourcée pour les femmes et demander le sexe.
    - La simulation de cadence (rééchantillonnage d'un export JSON) sert de base au test Node.

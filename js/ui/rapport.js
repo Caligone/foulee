@@ -1,7 +1,8 @@
 // Rapport d'une analyse : constats, exercices, images clés, mesures, vues de face / dos, lecteur, méthode.
 import { REPERES, bande, classe, statut, libelle, typique, LIBELLES } from '../domaine/reperes.js';
-import { VUES, ETATS, MIN_APPUIS, etat, profils, frontaux, appuis, nbAppuis } from '../domaine/analyse.js';
+import { VUES, ETATS, etat, profils, frontaux, appuis } from '../domaine/analyse.js';
 import { bilan } from '../domaine/recommandations.js';
+import { qualite } from '../domaine/qualite.js';
 import { drawFrame, drawContact, drawFrontal, drawTarget, css, PHOTO } from './dessin.js';
 import { fmt, pace, esc } from '../format.js';
 
@@ -73,6 +74,13 @@ function frontalHTML(p) {
   <p class="ref">Pied / ligne médiane : position du talon par rapport au milieu du bassin, en % de la largeur du bassin (négatif = le pied croise la ligne), sans norme publiée. ${back ? `Chute du bassin : ${REPERES.drop.ref} Inclinaison de caméra estimée et retirée : ${fmt(m.roll, 1)}°. Genou : + = vers l'intérieur ; 4,0 ± 3,3° chez des coureurs sans douleur (Vasconcelos 2022), pas de seuil.` : 'De face, la chute du bassin et le genou ne sont pas chiffrés : filme de dos pour les obtenir.'}</p>`;
 }
 
+// qualité du tournage : repliée si tout va bien, ouverte s'il y a quelque chose à changer
+function qualiteHTML(a) {
+  const q = qualite(a), ko = q.filter((x) => !x.ok);
+  return `<details class="quality"${ko.length ? ' open' : ''}><summary>${ko.length ? `Tournage : ${ko.length} point${ko.length > 1 ? 's' : ''} à améliorer pour la prochaine vidéo` : 'Tournage : rien à redire'}</summary>
+    <ul>${q.map((x) => `<li class="${x.ok ? 'qok' : 'qko'}">${x.texte}${x.conseil ? `<span>${x.conseil}</span>` : ''}</li>`).join('')}</ul></details>`;
+}
+
 // ---------- rapport ----------
 // actions : { show(vue), supprimer(a) }
 export async function afficherRapport(a, actions) {
@@ -81,7 +89,6 @@ export async function afficherRapport(a, actions) {
   const { constats, exercices } = bilan(a);
   const d = new Date(a.videoDate || a.date);
   const title = a.label || `Analyse du ${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`;
-  const n = nbAppuis(a);
   const R = $('#report');
   R.innerHTML = `<div class="rep">
   <header>
@@ -89,10 +96,10 @@ export async function afficherRapport(a, actions) {
     <div class="meta"><span>Coureur <b>${fmt(a.height * 100)} cm${a.weight ? ` · ${fmt(a.weight)} kg` : ''}</b></span><span>Vidéo <b>${esc(a.videoName)}</b></span><span><b>${a.passes.length}</b> passage${a.passes.length > 1 ? 's' : ''} repéré${a.passes.length > 1 ? 's' : ''}</span></div>
     <nav class="toc noprint" aria-label="Sommaire du rapport"><a href="#bref">En bref</a>${exercices.length ? '<a href="#plan">Quoi travailler</a>' : ''}<a href="#images">Images clés</a><a href="#mesures">Mesures</a>${fr.length ? '<a href="#frontal">Face / dos</a>' : ''}<a href="#lecteur">Lecteur</a><a href="#methode">Méthode</a></nav>
     <div class="actions noprint"><button class="btn small" id="print">Imprimer ou PDF</button><button class="btn ghost" id="exp">Exporter (JSON)</button><button class="btn ghost" id="again">Nouvelle analyse</button></div>
-    ${a.fpsNote ? `<p class="note">${esc(a.fpsNote)}</p>` : ''}${a.fps < 50 ? `<p class="note">Moins de 50 images/s : temps de contact et de vol imprécis (± 1 image = ${fmt(1000 / a.fps)} ms).</p>` : ''}
-    ${prof.length && n < MIN_APPUIS ? `<p class="note">${n} appui${n > 1 ? 's' : ''} de profil seulement : il en faut au moins ${MIN_APPUIS} pour une mesure 2D fiable (Dingenen 2018). Valeurs indicatives ; filme un ou deux passages de plus.</p>` : ''}
+    ${a.fpsNote ? `<p class="note">${esc(a.fpsNote)}</p>` : ''}
     ${a.recalcule ? '<p class="note">Mesures recalculées avec la version actuelle de l\'analyse.</p>' : ''}
   </header>
+  ${qualiteHTML(a)}
   <section id="bref"><h2>En bref</h2><ul class="prio">${constats.map((c) => `<li>${chip(c.st, c.label ?? LIBELLES[c.st])}<h4>${c.t}</h4><p>${c.d}${c.cle ? ` <a href="#${c.cle === 'frontal' ? 'frontal' : `m-${c.cle}`}" class="see">Voir la mesure</a>` : ''}</p></li>`).join('')}</ul></section>
   ${exercices.length ? `<section id="plan"><h2>Quoi travailler</h2><div class="plan">${exercices.map((x) => `<article><h4>${x.t}</h4><ul>${x.li.map((l) => `<li>${l}</li>`).join('')}</ul><p class="why">${x.why}${x.sources ? ` <span class="src">Sources : ${x.sources.map(source).join(' · ')}</span>` : ''}</p></article>`).join('')}</div></section>` : ''}
   <section id="images"><h2>Images clés</h2><div class="keyimgs" id="keys"></div></section>

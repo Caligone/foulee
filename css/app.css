@@ -138,6 +138,13 @@ th{font-weight:600;font-size:.85rem;color:var(--muted)}
 td.num,th.num{text-align:right}
 tr.clickable{cursor:pointer} tr.clickable:hover td{background:var(--bg)}
 .trend.up{color:var(--ok)}.trend.down{color:var(--bad)}.trend.same{color:var(--muted);font-weight:600}
+.quality{border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:10px 16px;margin-top:12px}
+.quality summary{cursor:pointer;font-weight:600}
+.quality ul{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
+.quality li{padding-left:22px;position:relative}
+.quality li::before{position:absolute;left:0;font-weight:700}
+.quality .qok::before{content:"✓";color:var(--ok)}.quality .qko::before{content:"!";color:var(--warn);left:4px}
+.quality li span{display:block;color:var(--muted);font-size:.92rem}
 .why .src{display:block;margin-top:4px;font-size:.85rem}.why .src a{color:var(--accent)}
 .cmpsum{font-size:1.05rem;margin:0}
 .note{border-left:3px solid var(--warn);padding:10px 14px;background:var(--surface);font-size:.93rem}

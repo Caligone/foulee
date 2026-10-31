@@ -94,3 +94,15 @@ test('bilan : aucune allégation médicale dans les textes', () => {
   assert.ok(b.exercices.length >= 3);
   assert.doesNotMatch(texte, /bless|douleur|prévien|prévention|guéri|soign|traitement|diagnos/i);
 });
+
+test('qualité du tournage : signale ce qui est à changer, avec un conseil', async () => {
+  const { qualite } = await import('../js/domaine/qualite.js');
+  const m = { footsOk: true, nSteps: 3, leg_px: 100, visibleShare: 0.9 };
+  const q = qualite({ fps: 30, decoder: 'webcodecs', passes: [profil(m)] });
+  const ko = q.filter((x) => !x.ok).map((x) => x.texte);
+  assert.ok(ko.some((t) => /images\/s/.test(t)));
+  assert.ok(ko.some((t) => /appuis de profil/.test(t)));
+  assert.ok(ko.some((t) => /petit à l'image/.test(t)));
+  assert.ok(ko.some((t) => /vue de dos/i.test(t)));
+  assert.ok(q.filter((x) => !x.ok).every((x) => x.conseil));
+});
