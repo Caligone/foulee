@@ -2,7 +2,7 @@ import { loadPose, openVideo, scanVideo, findPassages, poseOnPassage } from './e
 import { openFrames } from './frames.js';
 import { profileMetrics, frontalMetrics } from './metrics.js';
 import { saveAnalysis, listAnalyses, getAnalysis, deleteAnalysis } from './store.js';
-import { synthesize, gaugesHTML, drawFrame, drawContact, drawFrontal, fmt, pace, REFS, STATUS } from './report.js';
+import { synthesize, gaugesHTML, drawFrame, drawContact, drawFrontal, drawTarget, typical, fmt, pace, REFS, STATUS, PHOTO, css } from './report.js';
 
 const $ = (s) => document.querySelector(s);
 const params = new URLSearchParams(location.search);
@@ -152,6 +152,7 @@ async function renderReport(a) {
   $('#again').onclick = () => show('new');
   setupPlayer(a);
   await renderKeys(a, prof, fr);
+  await renderTargets(a, prof);
 }
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
@@ -164,7 +165,8 @@ function frontalHTML(p, a) {
   const warn = m.obliqueWarn ? '<p class="note">Le coureur se déplace de biais par rapport à la caméra : largeur d\'appui, bassin et genou sont faussés par la perspective. Mesures indicatives seulement.</p>' : '';
   const rows = m.contacts.map((c) => `<tr><td>${c.side}</td><td class="num">${fmt(c.f0)}–${fmt(c.f1)}</td><td class="num">${fmt(c.lateral)} %</td><td>${c.lateral < 0 ? 'croise' : 'de son côté'}</td>${back ? `<td class="num">${fmt(c.drop, 1)}°</td><td class="num">${fmt(c.fppa)}°</td>` : ''}</tr>`).join('');
   return `<h3>${KIND[p.kind]} · ${fmt(p.t0, 1)}–${fmt(p.t1, 1)} s</h3>${warn}${hid ? `<p class="note">${hid}</p>` : ''}
-  <div class="tablewrap"><table><thead><tr><th>Appui</th><th>Images</th><th>Pied / ligne médiane</th><th></th>${back ? '<th>Chute du bassin</th><th>Genou (plan frontal)</th>' : ''}</tr></thead><tbody>${rows}</tbody></table></div>
+  <p>Pied par rapport à la ligne médiane : <b>${fmt(m.lateralMed)} %</b> de la largeur du bassin (médiane) · <b>${m.crossings}</b> appui${m.crossings > 1 ? 's' : ''} sur ${m.contacts.length} croise${m.crossings > 1 ? 'nt' : ''} la ligne.${back ? ` Chute du bassin : gauche <b>${fmt(m.drop.gauche, 1)}°</b>, droite <b>${fmt(m.drop.droite, 1)}°</b>.` : ''}</p>
+  <details class="fdet"><summary>Détail des ${m.contacts.length} appuis</summary><div class="tablewrap"><table><thead><tr><th>Appui</th><th>Images</th><th>Pied / ligne médiane</th><th></th>${back ? '<th>Chute du bassin</th><th>Genou (plan frontal)</th>' : ''}</tr></thead><tbody>${rows}</tbody></table></div></details>
   <p class="ref">Pied / ligne médiane : position du talon par rapport au milieu du bassin, en % de la largeur du bassin (négatif = le pied croise la ligne). ${back ? `Chute du bassin : sains 3,7 ± 1,9°, blessés 6,4 ± 2,1° (Bramah 2018). Inclinaison de caméra estimée et retirée : ${fmt(m.roll, 1)}°. Genou : + = vers l'intérieur ; asymptomatiques 4,0 ± 3,3° (Vasconcelos 2022), pas de seuil.` : 'De face, la chute du bassin et le genou ne sont pas chiffrés : filme de dos pour les obtenir.'}</p>`;
 }
 
@@ -184,6 +186,22 @@ function compareHTML(a, prev) {
   return `<section><h2>Évolution depuis le ${new Date(prev.videoDate || prev.date).toLocaleDateString('fr-FR')}</h2>
     <p class="muted">Passages d'allure la plus proche : ${pace(best.o.pace)} → ${pace(best.c.pace)} min/km.${best.d > 0.3 ? ' Allures assez différentes : comparaison à prendre avec prudence.' : ''}</p>
     <div class="tablewrap"><table><thead><tr><th>Mesure</th><th>Avant</th><th>Maintenant</th><th>Écart</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
+}
+
+// photo de chaque mesure : l'appui le plus proche de la valeur retenue (médiane), pas le pire
+async function renderTargets(a, prof) {
+  const ty = typical(prof);
+  for (const c of document.querySelectorAll('.mphoto canvas')) {
+    const k = c.dataset.k; let best = null;
+    for (const p of prof) for (const st of p.metrics.steps) {
+      const d = Math.abs(st[k] - ty[k]), f = p.frames.find((x) => x.f === st.f_ic);
+      if (f?.lm && Number.isFinite(d) && (!best || d < best.d)) best = { d, p, st, f };
+    }
+    if (!best) { c.closest('figure').remove(); continue; }
+    const R = REFS[k], st = R.status(ty[k], ty), col = css({ ok: '--ok', warn: '--warn', bad: '--bad' }[st] ?? '--na');
+    await drawTarget(c, best.f, k, best.st[k], best.p.dir, col);
+    c.nextElementSibling.textContent = `Passage ${a.passes.indexOf(best.p) + 1} (${pace(best.p.metrics.pace)}/km), image ${best.st.f_ic} : l'appui le plus proche de ta valeur habituelle. Couleur : ${PHOTO[k]} ; vert : la zone visée.`;
+  }
 }
 
 async function renderKeys(a, prof, fr) {
