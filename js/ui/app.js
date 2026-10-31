@@ -4,7 +4,7 @@ import { ALGO, aJour, profils } from '../domaine/analyse.js';
 import { REPERES, typique, comparer } from '../domaine/reperes.js';
 import { saveAnalysis, listAnalyses, getAnalysis, deleteAnalysis, deleteAll } from '../infra/stockage.js';
 import { afficherRapport, CLASSE } from './rapport.js';
-import { fmt, pace, esc } from '../format.js';
+import { fmt, fu, pace, esc } from '../format.js';
 
 const $ = (s) => document.querySelector(s);
 const params = new URLSearchParams(location.search);
@@ -40,7 +40,7 @@ if ($('#file').files[0]) setFile($('#file').files[0]); // fichier choisi avant l
 ['dragenter', 'dragover'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('over'); }));
 ['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('over'); }));
 drop.addEventListener('drop', (e) => { const f = e.dataTransfer.files[0]; if (f) setFile(f); });
-try { const s = JSON.parse(localStorage.getItem('foulee-profile') || '{}'); if (s.h) $('#height').value = s.h; if (s.w) $('#weight').value = s.w; } catch {}
+try { const s = JSON.parse(localStorage.getItem('foulee-profile') || '{}'); if (s.h) $('#height').value = s.h; if (s.s) $('#sexe').value = s.s; } catch {}
 $('#form').addEventListener('submit', (e) => { e.preventDefault(); run().catch(fail); });
 $('#cancel').addEventListener('click', () => enCours?.abort());
 
@@ -66,11 +66,11 @@ async function run() {
   if (!file || enCours) return;
   enCours = new AbortController();
   $('#form-err').hidden = true; show('run'); etape = { i: -1, debut: 0 }; $('#run-pct').textContent = '';
-  try { localStorage.setItem('foulee-profile', JSON.stringify({ h: $('#height').value, w: $('#weight').value })); } catch {}
+  try { localStorage.setItem('foulee-profile', JSON.stringify({ h: $('#height').value, s: $('#sexe').value })); } catch {}
   const live = $('#live').getContext('2d');
   let vues = 0;
   const a = await analyser(file, {
-    height: Number($('#height').value) / 100, weight: Number($('#weight').value) || null,
+    height: Number($('#height').value) / 100, sexe: $('#sexe').value || undefined,
     fps: Number($('#fps').value) || null, label: $('#label').value.trim(), modelUrl: params.get('model') ?? undefined,
   }, {
     signal: enCours.signal, onStep: stepUI, onProgress: bar,
@@ -108,16 +108,20 @@ const SENS = { mieux: 'up', 'moins bien': 'down', stable: 'same', 'sans repère'
 function compareHTML(apres, avant) {
   const pa = profils({ passes: apres.summary }), pb = profils({ passes: avant.summary });
   if (!pa.length || !pb.length) return '<p class="empty">Il faut un passage de profil exploitable dans chacune des deux analyses.</p>';
-  const A = typique(pa.map((p) => p.metrics)), B = typique(pb.map((p) => p.metrics));
+  const A = { ...typique(pa.map((p) => p.metrics)), sexe: apres.sexe }, B = { ...typique(pb.map((p) => p.metrics)), sexe: avant.sexe };
   const ordre = { 'moins bien': 0, mieux: 1, stable: 2, 'sans repère': 3 };
-  const lignes = comparer(B, A).sort((x, y) => ordre[x.verdict] - ordre[y.verdict]);
+  // une mesure indicative d'un côté (caméra mobile) ne se compare pas
+  const exclure = [...pa, ...pb].flatMap((p) => p.metrics.indicatifs ?? []);
+  const lignes = comparer(B, A, exclure).sort((x, y) => ordre[x.verdict] - ordre[y.verdict]);
   const n = (v) => lignes.filter((l) => l.verdict === v).length;
   const d = (k) => (k === 'vosc_cm' ? 1 : 0);
-  const val = (k, v, st) => `<span class="chip ${CLASSE[st]}">${fmt(v, d(k))} ${REPERES[k].unit}</span>`;
+  const val = (k, v, st) => `<span class="chip ${CLASSE[st]}">${fu(v, REPERES[k].unit, d(k))}</span>`;
+  // stable alors que la couleur change : l'écart reste dans la marge de mesure, on le dit
+  const texte = (l) => l.verdict === 'stable' && l.statutAvant !== l.statutApres ? 'Stable (dans la marge)' : l.verdict[0].toUpperCase() + l.verdict.slice(1);
   const dp = Math.abs(A.pace - B.pace);
   return `<p class="cmpsum"><b class="trend up">${n('mieux')} mieux</b> · <b class="trend down">${n('moins bien')} moins bien</b> · <b class="trend same">${n('stable')} stables</b></p>
     <p class="muted">Allure médiane : ${pace(B.pace)} → ${pace(A.pace)} min/km.${dp > 0.3 ? ' Allures assez différentes : la cadence, le contact et l\'angle du pied changent avec la vitesse, compare plutôt deux vidéos à la même allure.' : ''} « Stable » : écart plus petit que la marge de mesure, ou mesure dans le repère les deux fois.</p>
-    <div class="tablewrap"><table><thead><tr><th>Mesure</th><th>Avant</th><th>Après</th><th>Écart</th><th></th></tr></thead><tbody>${lignes.map((l) => `<tr><td>${REPERES[l.k].label}</td><td>${val(l.k, l.avant, l.statutAvant)}</td><td>${val(l.k, l.apres, l.statutApres)}</td><td class="num">${l.diff >= 0 ? '+' : ''}${fmt(l.diff, d(l.k))}</td><td><b class="trend ${SENS[l.verdict]}">${l.verdict[0].toUpperCase() + l.verdict.slice(1)}</b></td></tr>`).join('')}</tbody></table></div>`;
+    <div class="tablewrap"><table><thead><tr><th>Mesure</th><th>Avant</th><th>Après</th><th>Écart</th><th></th></tr></thead><tbody>${lignes.map((l) => `<tr><td>${REPERES[l.k].label}</td><td>${val(l.k, l.avant, l.statutAvant)}</td><td>${val(l.k, l.apres, l.statutApres)}</td><td class="num">${l.diff >= 0 ? '+' : ''}${fu(l.diff, REPERES[l.k].unit, d(l.k))}</td><td><b class="trend ${SENS[l.verdict]}">${texte(l)}</b></td></tr>`).join('')}</tbody></table></div>`;
 }
 
 async function renderHistory() {
@@ -129,11 +133,12 @@ async function renderHistory() {
   } catch (e) { H.innerHTML = `<p class="empty">Historique indisponible dans ce navigateur (${esc(e.message)}).</p>`; return; }
   if (!list.length) { H.innerHTML = '<p class="empty">Aucune analyse enregistrée pour l\'instant.</p>'; return; }
   const row = (x) => {
-    const ms = profils({ passes: x.summary }).map((p) => p.metrics);
-    const j = (k, d = 0) => ms.map((m) => fmt(m[k], d)).join(' · ') || '—';
-    const kinds = x.summary.map((p) => p.kind[0].toUpperCase()).join('');
+    const ms = profils({ passes: x.summary }).map((p) => p.metrics), ty = typique(ms);
+    const j = (k, d = 0) => (ms.length ? fmt(ty[k], d) : '—'); // médiane des passages, comme le rapport
+    const nb = (k) => x.summary.filter((p) => p.kind === k).length;
+    const kinds = [['profil', 'profil'], ['face', 'face'], ['dos', 'dos']].filter(([k]) => nb(k)).map(([k, t]) => `${nb(k)} ${t}`).join(' · ');
     return `<tr class="clickable" data-id="${x.id}" tabindex="0"><td>${new Date(x.videoDate || x.date).toLocaleDateString('fr-FR')}</td><td>${esc(x.label || x.videoName)}</td><td>${kinds}</td>
-      <td class="num">${ms.map((m) => pace(m.pace)).join(' · ') || '—'}</td><td class="num">${j('cadence')}</td><td class="num">${j('contact_ms')}</td><td class="num">${j('shank_deg')}</td><td class="num">${j('heel_hip_pct')}</td><td class="num">${j('trunk')}</td></tr>`;
+      <td class="num">${ms.length ? pace(ty.pace) : '—'}</td><td class="num">${j('cadence')}</td><td class="num">${j('contact_ms')}</td><td class="num">${j('shank_deg')}</td><td class="num">${j('heel_hip_pct')}</td><td class="num">${j('trunk')}</td></tr>`;
   };
   const dateOf = (x) => `${new Date(x.videoDate || x.date).toLocaleDateString('fr-FR')}${x.label ? ` · ${esc(x.label)}` : ''}`;
   const opts = (sel) => list.map((x, i) => `<option value="${i}"${i === sel ? ' selected' : ''}>${dateOf(x)}</option>`).join('');
@@ -141,8 +146,8 @@ async function renderHistory() {
     <div class="row"><label>Avant<select id="cmpb">${opts(1)}</select></label><label>Après<select id="cmpa">${opts(0)}</select></label></div><div id="cmpout"></div></section>` : '';
   const vieilles = list.filter((x) => (x.algo ?? 1) !== ALGO).length;
   H.innerHTML = `${cmp}${vieilles ? `<p class="note">${vieilles} analyse${vieilles > 1 ? 's' : ''} enregistrée${vieilles > 1 ? 's' : ''} avec une version précédente : elles n'ont pas pu être recalculées (enregistrement ancien) : leurs mesures restent celles de l'époque.</p>` : ''}
-    <div class="tablewrap"><table><thead><tr><th>Date</th><th>Libellé</th><th>Vues</th><th>Allure</th><th>Cadence</th><th>Contact ms</th><th>Tibia °</th><th>Talon/bassin %</th><th>Buste °</th></tr></thead><tbody>${list.map(row).join('')}</tbody></table></div>
-    <p class="muted">Vues : P = profil, F = face, D = dos. Clique sur une ligne pour rouvrir le rapport.</p>
+    <div class="tablewrap"><table><thead><tr><th>Date</th><th>Libellé</th><th>Passages</th><th>Allure</th><th>Cadence</th><th>Contact (ms)</th><th>Tibia (°)</th><th>Talon (% jambe)</th><th>Buste (°)</th></tr></thead><tbody>${list.map(row).join('')}</tbody></table></div>
+    <p class="muted">Valeurs médianes des passages de profil. Clique sur une ligne pour rouvrir le rapport.</p>
     <div class="actions"><button class="btn ghost" id="delall">Effacer tout l'historique</button></div>`;
   if (cmp) { const upd = () => { $('#cmpout').innerHTML = compareHTML(list[$('#cmpa').value], list[$('#cmpb').value]); }; $('#cmpa').onchange = $('#cmpb').onchange = upd; upd(); }
   $('#delall').onclick = () => {

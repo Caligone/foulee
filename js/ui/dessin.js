@@ -36,7 +36,9 @@ export const PHOTO = {
   shank_deg: 'ton tibia', foot_deg: 'ton pied', knee_ic: 'ta jambe sous le genou', trunk: 'ton buste', heel_hip_pct: 'l\'écart talon-bassin',
 };
 export async function drawTarget(canvas, fr, k, v, dir, col) {
-  const S = canvas.width, ctx = canvas.getContext('2d'), R = REPERES[k], band = R.nature === 'publie' ? bande(R) : null;
+  const S = canvas.width, ctx = canvas.getContext('2d'), R = REPERES[k];
+  // zone visée : plage publiée, ou de part et d'autre de la verticale jusqu'au seuil indicatif (tibia)
+  const band = R.nature === 'publie' ? bande(R) : R.nature === 'indicatif' && R.unit === '°' ? [-R.seuil, R.seuil] : null;
   const lm = fr.lm; if (!lm) return;
   // zoom sur la zone utile : bassin et jambes, plus les épaules pour le buste
   const ids = [23, 24, 25, 26, 27, 28, 29, 30, 31, 32, ...(k === 'trunk' ? [0, 11, 12] : [])];
@@ -72,8 +74,8 @@ export async function drawTarget(canvas, fr, k, v, dir, col) {
     ctx.strokeStyle = col; ctx.lineWidth = 7; ctx.beginPath(); ctx.moveTo(...A); ctx.lineTo(...B); ctx.stroke();
     ctx.fillStyle = col; ctx.beginPath(); ctx.arc(...A, 7, 0, 7); ctx.fill();
   }
-  const lab = k === 'heel_hip_pct' ? `Toi : talon ${fmt(v)} % de jambe devant` : `Toi : ${fmt(v)}°`;
-  const cib = R.nature === 'indicatif' ? `Seuil indicatif : ${fmt(R.seuil)} ${R.unit}` : band ? `Repère : ${fmt(band[0])} à ${fmt(band[1])} ${R.unit}` : '';
+  const lab = k === 'heel_hip_pct' ? `Cet appui : talon ${fmt(v)} % de jambe devant` : `Cet appui : ${fmt(v)}°`;
+  const cib = R.nature === 'indicatif' ? `Seuil indicatif : ${fmt(R.seuil)}${R.unit === '°' ? '' : ' '}${R.unit}` : band ? `Repère : ${fmt(band[0])} à ${fmt(band[1])}${R.unit === '°' ? '' : ' '}${R.unit}` : '';
   tag(ctx, lab, 10, 26, S, col, '#111');
   if (cib) tag(ctx, cib, 10, 26 + S / 26 + 16, S, green, '#111');
 }

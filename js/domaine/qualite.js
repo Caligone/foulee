@@ -1,7 +1,7 @@
 // Qualité du tournage : ce qui rend les mesures fiables ou non, vérifié après coup sur l'analyse. Module pur.
 // Chaque point dit ce qui va, ou ce qu'il faut changer à la prochaine vidéo.
 
-import { profils, frontaux, nbAppuis, MIN_APPUIS } from './analyse.js';
+import { profils, frontaux, nbAppuis, MIN_APPUIS, cameraBouge } from './analyse.js';
 import { mediane } from './reperes.js';
 
 // seuils de l'appli (pas de norme publiée) : en dessous de ~150 px de jambe, 1 px vaut près de 1 cm à l'échelle du coureur
@@ -10,8 +10,7 @@ export const FPS_MIN = 50;
 // caméra qui bouge : part du fond (coureur exclu) qui diffère de l'image de fond, en médiane sur la vidéo.
 // Seuil de l'appli, calibré le 31/10 : ≤ 1,6 % sur des vidéos téléphone fixe, 7,8 à 48 % sur 8 clips à caméra mobile.
 // Coureur exclu : un plan serré ou un tapis ne déclenchent pas l'alerte. Analyses plus anciennes : ancienne mesure.
-export const FOND_MAX = 0.05, AGITATION_MAX = 0.25;
-export const cameraBouge = (mv) => (mv?.fond !== undefined ? mv.fond > FOND_MAX : (mv?.agite ?? 0) > AGITATION_MAX);
+export { FOND_MAX, AGITATION_MAX, cameraBouge } from './analyse.js';
 
 export function qualite(a) {
   const prof = profils(a), fr = frontaux(a), points = [];
@@ -42,7 +41,7 @@ export function qualite(a) {
   const dos = fr.filter((p) => p.kind === 'dos');
   if (dos.some((p) => !p.metrics.obliqueWarn)) ok('Vue de dos exploitable');
   else if (a.passes.some((p) => p.kind === 'dos')) ko('Vue de dos non exploitable ou de biais', 'Téléphone à hauteur de hanche dans l\'axe de course, éloigne-toi tout droit sur 10–15 m.');
-  else ko('Pas de vue de dos', 'Ajoute un passage où tu t\'éloignes de la caméra : c\'est la seule vue qui mesure la chute du bassin.');
+  else ko('Pas de vue de dos', 'Ajoute un passage où tu t\'éloignes de la caméra : c\'est la seule vue qui mesure l\'inclinaison latérale du bassin.');
   if (fr.some((p) => p.metrics.obliqueWarn)) ko('Vue de face ou de dos prise de biais : largeur d\'appui faussée', 'Cours dans l\'axe exact du téléphone.');
   return points;
 }

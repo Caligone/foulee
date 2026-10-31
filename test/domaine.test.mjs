@@ -26,23 +26,36 @@ test('repères selon l\'allure (Malisoux 2023) : moyenne et écart-type résidue
   assert.equal(statut('contact_ms', 220, sprint), statut('contact_ms', 220, { speed: 15 / 3.6 })); // pas d'extrapolation
 });
 
-test('libellé : dit le sens, en langage courant', () => {
-  assert.equal(libelle('shank_deg', statut('shank_deg', 8), 8), 'Proche du repère');
-  assert.equal(libelle('shank_deg', statut('shank_deg', 3), 3), 'Dans le repère');
-  assert.equal(libelle('cadence', statut('cadence', 150), 150), 'Plus bas que la moyenne');
-  assert.equal(libelle('cadence', statut('cadence', 140), 140), 'Bien plus bas que la moyenne');
-  assert.equal(libelle('cadence', statut('cadence', 180), 180), 'Plus haut que la moyenne'); // côté sans souci : vert
+test('libellé : les mots de la mesure, un libellé par couleur', () => {
+  assert.equal(libelle('cadence', statut('cadence', 150), 150), 'Plus basse que la moyenne');
+  assert.equal(libelle('cadence', statut('cadence', 140), 140), 'Nettement plus basse que la moyenne');
+  assert.equal(libelle('cadence', statut('cadence', 180), 180), 'Plus élevée que la moyenne'); // côté sans souci : vert
   assert.equal(statut('cadence', 180), 'ok');
+  assert.equal(libelle('trunk', statut('trunk', -1), -1), 'Plus droit que la moyenne');
+  assert.equal(libelle('shank_deg', statut('shank_deg', 8), 8), 'Dans le seuil indicatif'); // marge de 4°
+  assert.equal(libelle('shank_deg', statut('shank_deg', 12), 12), 'Plus penché vers l\'avant que le seuil indicatif');
+  assert.equal(libelle('knee_max', statut('knee_max', 30), 30), 'Moins fléchi que le seuil indicatif');
+});
+
+test('repères par sexe : moyenne propre (Malisoux 2023), seuil du bassin (Barrett 2023)', async () => {
+  const { seuil } = await import('../js/domaine/reperes.js');
+  assert.equal(seuil(REPERES.drop, { sexe: 'homme' }), 5);
+  assert.equal(seuil(REPERES.drop, { sexe: 'femme' }), 7);
+  assert.equal(seuil(REPERES.drop, {}), 7);
+  const v = { speed: 9 / 3.6 };
+  assert.equal(statut('contact_ms', 330, { ...v, sexe: 'femme' }), 'ok'); // 299 ms attendus à 9 km/h
+  assert.equal(statut('vosc_cm', 9.5, { sexe: 'femme' }), 'hors');
+  assert.equal(statut('vosc_cm', 9.5, { sexe: 'homme' }), 'ok');
 });
 
 test('statut : repère sans écart-type, seuil indicatif, mesure sans repère', () => {
   assert.equal(statut('shank_deg', 4), 'ok');
   assert.equal(statut('shank_deg', 12), 'hors'); // pas de « loin » sans écart-type publié
-  assert.equal(statut('shank_deg', 8), 'ok'); // 3° au-delà de la bande, marge de 4°
+  assert.equal(statut('shank_deg', 8), 'ok'); // 3° au-delà du seuil, marge de 4°
   assert.equal(statut('heel_hip_pct', 17), 'ok'); // seuil 15, marge 4
   assert.equal(statut('heel_hip_pct', 20), 'hors');
-  assert.equal(libelle('heel_hip_pct', 'hors', 20), 'Au-dessus du seuil indicatif');
-  assert.equal(libelle('knee_max', statut('knee_max', 45), 45), 'Au-dessus du seuil indicatif');
+  assert.equal(libelle('heel_hip_pct', 'hors', 20), 'Plus en avant que le seuil indicatif');
+  assert.equal(libelle('knee_max', statut('knee_max', 45), 45), 'Dans le seuil indicatif');
   assert.equal(statut('knee_max', 45), 'ok');
   assert.equal(statut('thigh_to', 2), 'info');
   assert.equal(statut('cadence', NaN), 'na');
@@ -131,8 +144,8 @@ test('qualité du tournage : signale ce qui est à changer, avec un conseil', as
 });
 
 test('bilan : un côté du bassin manquant n\'efface pas la mesure ; une mesure non calculée ne déclenche rien', () => {
-  const dos = { kind: 'dos', metrics: { contacts: [{}, {}], crossings: 0, drop: { gauche: 9, droite: NaN }, obliqueWarn: false } };
-  assert.ok(bilan({ passes: [dos] }).constats.some((c) => /bassin/i.test(c.t) && /9,0/.test(c.d)));
+  const dos = { kind: 'dos', metrics: { contacts: [{}, {}], crossings: 0, drop: { gauche: 11, droite: NaN }, obliqueWarn: false } };
+  assert.ok(bilan({ passes: [dos] }).constats.some((c) => /bassin/i.test(c.t) && /11,0/.test(c.d)));
   const m = { footsOk: true, nSteps: 5, shank_deg: 2, heel_hip_pct: 5, vosc_cm: NaN, trunk: 7, cadence: 165, knee_ic: 10, speed: 3, steps: [] };
   const b = bilan({ passes: [profil(m)] });
   assert.ok(!b.constats.some((c) => /Rebond/.test(c.t)));
@@ -178,4 +191,24 @@ test('caméra mobile : angles indicatifs sans piste, mesures liées au sol non r
   assert.equal(b.exercices.length, 0);
   assert.ok(b.constats.some((c) => c.role === 'verifier' && /semble/.test(c.t)));
   assert.equal(b.retenir.principal, null);
+});
+
+test("bilan : toute mesure en écart a un constat (jamais « Rien de marquant » au-dessus d'une jauge orange), et « Essaie » suit le constat principal", () => {
+  const m = { footsOk: true, nSteps: 8, shank_deg: 2, heel_hip_pct: 5, trunk: 7, cadence: 140, contact_ms: 290, duty: 39, vosc_cm: 8, knee_max: 45, speed: 2.75, steps: [] };
+  const b = bilan({ passes: [profil(m)] });
+  assert.equal(b.retenir.principal?.cle, 'cadence');
+  const dos = { kind: 'dos', metrics: { contacts: [{}, {}], crossings: 0, drop: { gauche: 12, droite: 12 }, obliqueWarn: false } };
+  const b2 = bilan({ passes: [profil({ ...m, cadence: 168, shank_deg: 12, heel_hip_pct: 25, heel_hip_cm: 20 }), dos], sexe: 'homme' });
+  assert.equal(b2.retenir.principal.cle, 'shank_deg'); // deux écarts simples : l'ordre d'origine est gardé
+  assert.ok(b2.retenir.action.vise.includes('shank_deg')); // la piste du constat principal, pas une autre
+  assert.ok(b2.constats.some((c) => c.cle === 'frontal' && c.role === 'ecart')); // bassin à 12° : seuil 5° (homme) + marge
+  assert.equal(b2.exercices[b2.retenir.numeroAction - 1], b2.retenir.action);
+});
+
+test('caméra mobile décidée par passage, sur son agitation propre', async () => {
+  const { fondPassage, cameraBouge } = await import('../js/domaine/analyse.js');
+  const mv = { fond: 0.02, serie: [[1, 0.01], [2, 0.01], [10, 0.3], [11, 0.4], [12, 0.35]] };
+  assert.ok(fondPassage(mv, 0, 3) < 0.05);
+  assert.ok(fondPassage(mv, 9, 13) > 0.05);
+  assert.equal(cameraBouge(mv), false);
 });

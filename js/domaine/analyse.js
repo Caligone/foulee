@@ -22,7 +22,7 @@ import { profileMetrics, frontalMetrics } from './mesures.js';
  *   masked: number, roll: number, [mesure: string]: any }} MesuresFrontal
  * @typedef {{ error: string }} EchecMesure
  * @typedef {{ kind: 'profil' | 'face' | 'dos', dir: number, t0: number, t1: number, frames: Image[],
- *   metrics: MesuresProfil | MesuresFrontal | EchecMesure | null, cameraMobile?: boolean }} Passage
+ *   metrics: MesuresProfil | MesuresFrontal | EchecMesure | null, cameraMobile?: boolean, fond?: number }} Passage
  * @typedef {{ id: string, date: number, height: number, fps: number, algo?: number, passes: Passage[],
  *   size?: [number, number], decoder?: string, vfr?: boolean | null, mouvement?: { agite: number, fond?: number },
  *   legacy?: boolean, recalcule?: boolean, [champ: string]: any }} Analyse
@@ -32,7 +32,7 @@ import { profileMetrics, frontalMetrics } from './mesures.js';
  */
 
 // à incrémenter à chaque changement de mesures.js qui modifie les résultats : les analyses plus anciennes sont recalculées
-export const ALGO = 2;
+export const ALGO = 3; // 3 : mode caméra mobile décidé par passage (31/10)
 export const MIN_APPUIS = 7; // moyenne d'au moins 7 pas pour une mesure 2D fiable (Dingenen 2018)
 
 export const VUES = { profil: 'Profil', face: 'De face', dos: 'De dos' };
@@ -75,9 +75,22 @@ export function appuis(p) {
 }
 export const nbAppuis = (a) => profils(a).reduce((n, p) => n + p.metrics.nSteps, 0);
 
+// caméra qui bouge : part du fond (coureur exclu) qui diffère de l'image de fond, en médiane. Seuil de l'appli, calibré
+// le 31/10 : ≤ 1,6 % sur des vidéos téléphone fixe, 7,8 à 48 % sur 8 clips à caméra mobile. Analyses plus anciennes,
+// sans cette mesure : agitation globale (qui compte aussi le couloir du coureur).
+export const FOND_MAX = 0.05, AGITATION_MAX = 0.25;
+export const cameraBouge = (mv) => (mv?.fond !== undefined ? mv.fond > FOND_MAX : (mv?.agite ?? 0) > AGITATION_MAX);
+/** médiane de l'agitation du fond sur la fenêtre d'un passage */
+export function fondPassage(mv, t0, t1) {
+  const v = (mv?.serie ?? []).filter(([t]) => t >= t0 && t <= t1).map(([, x]) => x).sort((a, b) => a - b);
+  return v.length ? v[v.length >> 1] : mv?.fond;
+}
+// mode caméra mobile d'un passage : d'après son agitation propre si on l'a, sinon le drapeau enregistré
+const mobile = (p) => (p.fond !== undefined ? p.fond > FOND_MAX : !!p.cameraMobile);
+
 /** @param {Passage} p @param {number} fps @param {number} height en mètres @returns {any} */
 export function mesurer(p, fps, height) {
-  try { return p.kind === 'profil' ? profileMetrics(p.frames, fps, height, p.dir, { cameraMobile: !!p.cameraMobile }) : frontalMetrics(p.frames, fps, p.kind); }
+  try { return p.kind === 'profil' ? profileMetrics(p.frames, fps, height, p.dir, { cameraMobile: mobile(p) }) : frontalMetrics(p.frames, fps, p.kind); }
   catch (e) { console.error(e); return { error: String(e) }; }
 }
 

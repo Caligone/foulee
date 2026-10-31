@@ -142,6 +142,9 @@ export function profileMetrics(allFrames, fps, heightM, dir, opts = {}) {
   stances = stances.filter((s, i) => i === 0 || s.ic > stances[i - 1].ic + 0.15 * fps);
   // caméra mobile : le pied d'appui n'est plus immobile dans l'image, on date les appuis par rapport au bassin
   if (opts.cameraMobile) stances = footsOk ? zeni(LM, T, fps).filter((z) => z.ic > edge && z.to < T - 2).map((z) => ({ ic: z.ic, to: z.to, xt: LM[z.ic][L.heL + z.pied][0], pied: z.pied })) : [];
+  // mêmes garde-fous que la méthode caméra fixe : contact plausible, pas de doublon entre les deux pieds
+  if (opts.cameraMobile) stances = stances.filter((st) => { const ms = (st.to - st.ic + 1) / fps * 1000; return ms >= 120 && ms <= 450; })
+    .filter((x, i, arr) => i === 0 || x.ic > arr[i - 1].ic + 0.15 * fps);
   const legAt = (t, xc) => { const c = [0, 1].map((s) => Math.abs(LM[t][L.toL + s][0] - xc) + 2 * Math.max(0, ground[t] - LM[t][L.toL + s][1])); return c[0] <= c[1] ? 0 : 1; };
   const ids = (s) => [L.hipL + s, L.knL + s, L.anL + s, L.heL + s, L.toL + s];
   const footAng = (he, to) => deg(Math.atan2(he[1] - to[1], to[0] - he[0]));
@@ -193,7 +196,8 @@ export function profileMetrics(allFrames, fps, heightM, dir, opts = {}) {
       foot_deg: m('foot_deg'), shank_deg: m('shank_deg'), heel_hip_cm: m('heel_hip_cm'), heel_hip_pct: m('heel_hip_pct'),
       knee_ic: m('knee_ic'), knee_max: m('knee_max'), thigh_to: m('thigh_to'),
       trunk: mean(LM.map((_, t) => angUp(sub(sh[t], hip[t])))), elbow: mean(elbow),
-      indicatifs: ['foot_deg', 'shank_deg', 'heel_hip_pct', 'knee_ic', 'knee_max', 'thigh_to'],
+      // cadence : jusqu'à 7 pas/min d'écart avec la méthode caméra fixe, plus que la marge de mesure
+      indicatifs: ['cadence', 'foot_deg', 'shank_deg', 'heel_hip_pct', 'knee_ic', 'knee_max', 'thigh_to'],
       ranges: Object.fromEntries(['foot_deg', 'shank_deg', 'heel_hip_cm', 'knee_ic', 'knee_max', 'thigh_to'].map((k) => [k, rng(k)])),
     };
   }
@@ -291,12 +295,7 @@ export function frontalMetrics(frames, fps, view) {
 // ================= APPUIS SANS REPÈRE FIXE =================
 // Pour une caméra qui suit le coureur : l'image n'est plus un repère fixe, on date les appuis par rapport au bassin
 // (Zeni et al. 2008) : contact = talon le plus en avant du bassin, décollage = pointe le plus en arrière.
-// Rend des indices d'images (dans frames), pour les deux pieds, triés.
-export function appuisRelatifs(frames, fps, dir) {
-  const { raw } = prepare(frames, dir < 0);
-  const T = raw.length; if (T < fps) return [];
-  return zeni(smoothAll(raw, Math.max(5, (Math.round(0.1 * fps) | 1))), T, fps);
-}
+// Rend des indices d'images, pour les deux pieds, triés.
 function zeni(LM, T, fps) {
   const hipx = LM.map((r) => (r[L.hipL][0] + r[L.hipR][0]) / 2);
   const ecartMin = Math.round(0.25 * fps); // deux contacts du même pied sont espacés d'au moins une foulée

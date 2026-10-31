@@ -32,7 +32,7 @@
         </label>
         <div class="grid2">
           <label>Taille (cm) <span class="req">obligatoire, sert d'échelle</span><input id="height" type="number" min="120" max="220" step="1" placeholder="ex. 175" required></label>
-          <label>Poids (kg)<input id="weight" type="number" min="30" max="150" step="0.5" placeholder="facultatif"></label>
+          <label>Sexe <span class="req">facultatif, affine les repères</span><select id="sexe"><option value="">Non précisé</option><option value="femme">Femme</option><option value="homme">Homme</option></select></label>
           <label class="span2">Nom de la séance <span class="req">facultatif</span><input id="label" type="text" placeholder="ex. Footing du jeudi, chaussures X"></label>
           <label>Images/s <span class="req">laisse vide : détecté</span><input id="fps" type="number" min="10" max="480" step="0.01" placeholder="auto"></label>
         </div>
@@ -45,10 +45,11 @@
         <ol>
           <li><b>Téléphone fixe et à l'horizontale (paysage)</b>, sur un support ou un trépied, à hauteur de hanche (≈ 1 m, pas au sol). Ne suis pas le coureur avec la caméra.</li>
           <li><b>De profil</b> : à 3–4 m de ta ligne de course, 3 passages d'au moins 2 s dans le champ, seul dans l'image.</li>
-          <li><b>De dos</b> : dans l'axe, tu t'éloignes de la caméra sur 10–15 m. C'est la seule vue qui mesure le bassin et l'alignement des genoux.</li>
+          <li><b>De dos</b> : dans l'axe, tu t'éloignes de la caméra sur 10–15 m. C'est la seule vue qui mesure l'inclinaison latérale du bassin.</li>
           <li><b>À ta vraie allure</b>, sur sol plat, pieds visibles en entier (pas d'herbe haute devant).</li>
           <li><b>60 images/s minimum</b> ; 120 ou 240 améliorent les temps de contact. Un ralenti iPhone doit être transféré en <b>original</b> (Photos : Exporter l'original non modifié ; AirDrop : Options › Toutes les données), sinon le temps réel est perdu.</li>
         </ol>
+        <p class="muted small">Outil d'aide à la technique de course, pas un dispositif médical : il ne remplace pas l'avis d'un professionnel.</p>
       </aside>
     </div>
   </section>

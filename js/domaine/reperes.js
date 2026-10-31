@@ -17,34 +17,39 @@
 /**
  * @typedef {{ label: string, unit: string, sc: [number, number], fiabilite: string, what: string, ref: string,
  *   nature: 'publie' | 'indicatif' | 'aucun', sens?: 'bas' | 'haut' | 'deux', m?: number, sd?: number, band?: [number, number],
- *   seuil?: number, pente?: number, sdAllure?: number, classes?: [number, string][] }} Repere
+ *   seuil?: number, pente?: number, sdAllure?: number, classes?: [number, string][], mots?: { haut: string, bas: string },
+ *   parSexe?: Record<string, { m?: number, sd?: number, kmh?: number }>, seuilSexe?: Record<string, number> }} Repere
  * @typedef {'ok' | 'hors' | 'loin' | 'info' | 'na'} Statut
- * @typedef {{ speed?: number }} Contexte  vitesse du coureur en m/s (repères selon l'allure)
+ * @typedef {{ speed?: number, sexe?: 'homme' | 'femme' }} Contexte  allure (m/s) et sexe du coureur, s'ils sont connus
  */
 /** @type {Record<string, Repere>} */
 export const REPERES = {
   cadence: {
-    label: 'Cadence', unit: 'pas/min', sc: [140, 195], fiabilite: 'haute',
+    mots: { haut: 'plus élevée', bas: 'plus basse' }, label: 'Cadence', unit: 'pas/min', sc: [140, 195], fiabilite: 'haute',
     what: 'Nombre de pas par minute, les deux pieds comptés.',
     nature: 'publie', m: 164, sd: 9, sens: 'bas', pente: 3.07, sdAllure: 7.7,
+    parSexe: { homme: { m: 164, kmh: 10.5 }, femme: { m: 164, kmh: 9.0 } },
     ref: 'Cadence spontanée : 164 ± 9 pas/min chez ~860 coureurs loisirs à 9,9 km/h en moyenne, +3 pas/min par km/h (Malisoux 2023, tapis).',
   },
   contact_ms: {
-    label: 'Temps de contact', unit: 'ms', sc: [180, 400], fiabilite: 'haute (± 1 image)',
+    mots: { haut: 'plus long', bas: 'plus court' }, label: 'Temps de contact', unit: 'ms', sc: [180, 400], fiabilite: 'haute (± 1 image)',
     what: 'Durée pendant laquelle le pied reste au sol à chaque pas.',
     nature: 'publie', m: 289, sd: 35, sens: 'haut', pente: -17.3, sdAllure: 21,
+    parSexe: { homme: { m: 283, kmh: 10.5 }, femme: { m: 299, kmh: 9.0 } },
     ref: '289 ± 35 ms à 9,9 km/h en moyenne, −17 ms par km/h de plus (Malisoux 2023, tapis).',
   },
   duty: {
-    label: 'Part du temps au sol', unit: '%', sc: [25, 55], fiabilite: 'haute',
+    mots: { haut: 'plus élevée', bas: 'plus faible' }, label: 'Part du temps au sol', unit: '%', sc: [25, 55], fiabilite: 'haute',
     what: 'Part de chaque foulée passée au sol plutôt qu\'en l\'air.',
     nature: 'publie', m: 39, sd: 4, sens: 'haut', pente: -1.63, sdAllure: 2.7,
+    parSexe: { homme: { m: 39, kmh: 10.5 }, femme: { m: 41, kmh: 9.0 } },
     ref: '39 ± 4 % du temps au sol à 9,9 km/h en moyenne, −1,6 point par km/h de plus (Malisoux 2023, tapis).',
   },
   vosc_cm: {
-    label: 'Oscillation verticale (bassin)', unit: 'cm', sc: [3, 15], fiabilite: 'moyenne',
+    mots: { haut: 'plus de rebond', bas: 'moins de rebond' }, label: 'Rebond vertical (bassin)', unit: 'cm', sc: [3, 15], fiabilite: 'moyenne',
     what: 'De combien le bassin monte et descend à chaque pas.',
     nature: 'publie', m: 7.7, sd: 1.2, sens: 'haut',
+    parSexe: { homme: { m: 8.0, sd: 1.3 }, femme: { m: 7.3, sd: 1.1 } },
     ref: '7,7 ± 1,2 cm, repère mixte : 8,0 ± 1,3 cm chez les hommes, 7,3 ± 1,1 cm chez les femmes (Malisoux 2023, centre de masse sur tapis ; l\'appli suit le bassin).',
   },
   foot_deg: {
@@ -54,13 +59,13 @@ export const REPERES = {
     ref: 'Attaque talon au-delà de 8°, médio-pied entre −1,6 et 8°, avant-pied en dessous (Altman & Davis 2012). Aucun type d\'attaque n\'est « meilleur » en soi.',
   },
   shank_deg: {
-    label: 'Inclinaison du tibia au contact', unit: '°', sc: [-10, 25], fiabilite: 'moyenne (± 3 à 5°)',
+    mots: { haut: 'plus penché vers l\'avant', bas: 'plus penché vers l\'arrière' }, label: 'Inclinaison du tibia au contact', unit: '°', sc: [-10, 25], fiabilite: 'moyenne (± 3 à 5°)',
     what: 'Angle du tibia avec la verticale au moment où le pied touche le sol ; positif = le pied arrive devant le genou.',
-    nature: 'publie', band: [-5, 5], sens: 'haut',
-    ref: 'Critère de technique utilisé en analyse vidéo de la course : à moins de 5° de la verticale (Barrett 2023) ; au-delà, le pied se pose devant le genou.',
+    nature: 'indicatif', seuil: 5, sens: 'haut',
+    ref: 'Critère de technique utilisé en analyse vidéo de la course : à moins de 5° de la verticale (Barrett 2023) ; au-delà, le pied se pose devant le genou. C\'est un critère de grille, pas une moyenne de coureurs : seuil indicatif.',
   },
   heel_hip_pct: {
-    label: 'Talon devant le bassin au contact', unit: '% jambe', sc: [-5, 50], fiabilite: 'moyenne',
+    mots: { haut: 'plus en avant', bas: 'plus près du bassin' }, label: 'Talon devant le bassin au contact', unit: '% jambe', sc: [-5, 50], fiabilite: 'moyenne',
     what: 'Distance entre le talon et l\'aplomb du bassin au moment où le pied touche le sol, en part de la longueur de jambe.',
     nature: 'indicatif', seuil: 15, sens: 'haut',
     ref: 'Pas de norme publiée. Le freinage augmente avec cette distance, et une cadence plus élevée la réduit (Lieberman 2015). Seuil indicatif de l\'appli : 15 % de la longueur de jambe.',
@@ -72,7 +77,7 @@ export const REPERES = {
     ref: 'Pas de moyenne publiée retenue pour une mesure 2D : les valeurs disponibles viennent d\'études 3D sur tapis.',
   },
   knee_max: {
-    label: 'Flexion max du genou en appui', unit: '°', sc: [20, 75], fiabilite: 'faible (jambes croisées)',
+    mots: { haut: 'plus fléchi', bas: 'moins fléchi' }, label: 'Flexion max du genou en appui', unit: '°', sc: [20, 75], fiabilite: 'faible (jambes croisées)',
     what: 'Pliure la plus forte du genou pendant l\'appui, quand il porte le poids du corps.',
     nature: 'indicatif', seuil: 40, sens: 'bas',
     ref: 'Environ 45° en moyenne (Souza 2016). Seuil indicatif de l\'appli : 40°.',
@@ -83,7 +88,7 @@ export const REPERES = {
     nature: 'aucun', ref: 'Pas de norme publiée en 2D.',
   },
   trunk: {
-    label: 'Inclinaison du buste', unit: '°', sc: [-15, 20], fiabilite: 'faible à moyenne',
+    mots: { haut: 'plus penché en avant', bas: 'plus droit' }, label: 'Inclinaison du buste', unit: '°', sc: [-15, 20], fiabilite: 'faible à moyenne',
     what: 'Inclinaison du buste ; positif = vers l\'avant.',
     nature: 'publie', m: 7.3, sd: 3.6, sens: 'deux',
     ref: 'Spontanée : 7,3 ± 3,6° vers l\'avant chez des coureurs loisirs (Teng & Powers 2014, 3,4 m/s).',
@@ -95,10 +100,10 @@ export const REPERES = {
   },
   // vue de dos
   drop: {
-    label: 'Inclinaison latérale du bassin en appui', unit: '°', sc: [0, 12], fiabilite: 'modérée à bonne en 2D (Dingenen 2018)',
+    mots: { haut: 'plus incliné', bas: 'moins incliné' }, label: 'Inclinaison latérale du bassin en appui', unit: '°', sc: [0, 12], fiabilite: 'modérée à bonne en 2D (Dingenen 2018)',
     what: 'Abaissement du côté du bassin opposé au pied d\'appui, vu de dos.',
-    nature: 'indicatif', seuil: 5, sens: 'haut',
-    ref: 'Pas de moyenne publiée retenue pour une mesure 2D. Seuil indicatif de l\'appli : 5°, de l\'ordre des critères de technique utilisés en analyse vidéo (Barrett 2023).',
+    nature: 'indicatif', seuil: 7, sens: 'haut', seuilSexe: { homme: 5, femme: 7 },
+    ref: 'Pas de moyenne publiée retenue pour une mesure 2D. Seuil indicatif : borne haute de la grille de technique de Barrett 2023, 5° chez les hommes, 7° chez les femmes (7° si non précisé).',
   },
 };
 
@@ -110,17 +115,22 @@ export const BRUIT = MARGE;
 
 const KMH_REF = 9.9, KMH_PLAGE = [7, 15]; // vitesse moyenne et plage des coureurs de Malisoux 2023
 const allure = (R, ctx) => R.pente && Number.isFinite(ctx?.speed);
+// population de référence : celle du sexe du coureur s'il est précisé (moyenne et vitesse moyenne propres), sinon mixte
+const ref = (R, ctx) => R.parSexe?.[ctx?.sexe] ?? {};
 // moyenne de référence, recentrée sur l'allure du coureur quand la source le permet (ctx.speed en m/s)
-export const moyenne = (R, ctx) => allure(R, ctx)
-  ? R.m + R.pente * (Math.min(KMH_PLAGE[1], Math.max(KMH_PLAGE[0], ctx.speed * 3.6)) - KMH_REF) : R.m;
-const ecartType = (R, ctx) => (allure(R, ctx) && R.sdAllure) || R.sd;
+export function moyenne(R, ctx) {
+  const m = ref(R, ctx).m ?? R.m, kmh = ref(R, ctx).kmh ?? KMH_REF;
+  return allure(R, ctx) ? m + R.pente * (Math.min(KMH_PLAGE[1], Math.max(KMH_PLAGE[0], ctx.speed * 3.6)) - kmh) : m;
+}
+const ecartType = (R, ctx) => (allure(R, ctx) && R.sdAllure) || ref(R, ctx).sd || R.sd;
+export const seuil = (R, ctx) => R.seuilSexe?.[ctx?.sexe] ?? R.seuil;
 // bande publiée (la plupart des coureurs) : critère tel quel, ou moyenne ± 1 écart-type
 export const bande = (R, ctx) => R.band ?? (R.sd ? [moyenne(R, ctx) - ecartType(R, ctx), moyenne(R, ctx) + ecartType(R, ctx)] : null);
 // bande élargie de la marge de mesure : en deçà, aucun écart n'est signalé (dessinée en clair sur la jauge)
 export function bandeLarge(k, ctx) {
   const R = REPERES[k], m = MARGE[k] ?? 0;
   if (!R || R.nature === 'aucun') return null;
-  if (R.nature === 'indicatif') return R.sens === 'haut' ? [-Infinity, R.seuil + m] : [R.seuil - m, Infinity];
+  if (R.nature === 'indicatif') return R.sens === 'haut' ? [-Infinity, seuil(R, ctx) + m] : [seuil(R, ctx) - m, Infinity];
   // du côté qui ne pose pas question, la zone tolérée va jusqu'au bout de l'échelle
   const [b0, b1] = R.sd ? [moyenne(R, ctx) - Math.hypot(ecartType(R, ctx), m), moyenne(R, ctx) + Math.hypot(ecartType(R, ctx), m)] : [R.band[0] - m, R.band[1] + m];
   return [R.sens === 'haut' ? -Infinity : b0, R.sens === 'bas' ? Infinity : b1];
@@ -132,7 +142,7 @@ export const classe = (R, v) => R.classes?.find(([lim]) => v < lim)?.[1];
 export function ecart(k, v, ctx) {
   const R = REPERES[k];
   if (!R || R.nature === 'aucun' || !Number.isFinite(v)) return 0;
-  const [b0, b1] = R.nature === 'indicatif' ? [R.seuil, R.seuil] : bande(R, ctx);
+  const [b0, b1] = R.nature === 'indicatif' ? [seuil(R, ctx), seuil(R, ctx)] : bande(R, ctx);
   return Math.max(R.sens !== 'haut' ? b0 - v : 0, R.sens !== 'bas' ? v - b1 : 0, 0);
 }
 
@@ -167,16 +177,16 @@ export const LIBELLES = {
 export function libelle(k, st, v, ctx) {
   const R = REPERES[k];
   if (!R || st === 'na' || st === 'info' || !Number.isFinite(v)) return LIBELLES[st];
+  const cap = (t) => t[0].toUpperCase() + t.slice(1);
   if (R.nature === 'indicatif') {
-    // seuil maximal (talon, bassin) ou minimal (flexion du genou) : on dit de quel côté du seuil on est
-    const dessus = v > R.seuil;
-    return `${dessus ? 'Au-dessus' : 'En dessous'} du seuil indicatif`;
+    // un seul libellé par couleur : sous le seuil (vert), ou au-delà dans le sens qui pose question (orange)
+    return st === 'ok' ? 'Dans le seuil indicatif' : `${cap(R.mots[R.sens === 'bas' ? 'bas' : 'haut'])} que le seuil indicatif`;
   }
-  const ref = R.sd ? 'la moyenne' : 'le repère', [b0, b1] = bande(R, ctx);
-  if (v >= b0 && v <= b1) return R.sd ? 'Dans la moyenne' : 'Dans le repère';
-  const sens = v > b1 ? 'haut' : 'bas';
-  if (st === 'ok') return R.sens === 'deux' || R.sens === sens ? `Proche ${R.sd ? "de la moyenne" : "du repère"}` : `Plus ${sens} que ${ref}`;
-  return `${st === 'loin' ? 'Bien plus' : 'Plus'} ${sens} que ${ref}`;
+  const [b0, b1] = bande(R, ctx);
+  if (v >= b0 && v <= b1) return 'Dans la moyenne';
+  const cote = v > b1 ? 'haut' : 'bas', mot = R.mots?.[cote] ?? `plus ${cote}`;
+  if (st === 'ok') return R.sens === 'deux' || R.sens === cote ? 'Proche de la moyenne' : `${cap(mot)} que la moyenne`;
+  return `${st === 'loin' ? 'Nettement ' + mot : cap(mot)} que la moyenne`;
 }
 
 const med = (a) => {
@@ -194,8 +204,9 @@ const RANG = { ok: 0, hors: 1, loin: 2 };
 
 // verdict seulement au-delà de la marge : changement de statut, ou à statut égal hors repère, rapprochement du repère.
 // avant / après : valeurs typiques (avec leur vitesse, pour les repères qui dépendent de l'allure)
-export function comparer(avant, apres) {
-  return Object.keys(MARGE).filter((k) => k in REPERES && Number.isFinite(avant[k]) && Number.isFinite(apres[k])).map((k) => {
+// exclure : mesures indicatives (caméra mobile) ou comparées par deux méthodes différentes, sans verdict possible
+export function comparer(avant, apres, exclure = []) {
+  return Object.keys(MARGE).filter((k) => k in REPERES && !exclure.includes(k) && Number.isFinite(avant[k]) && Number.isFinite(apres[k])).map((k) => {
     const sa = statut(k, avant[k], avant), sb = statut(k, apres[k], apres), diff = apres[k] - avant[k];
     let verdict = 'stable';
     if (REPERES[k].nature === 'aucun') verdict = 'sans repère';

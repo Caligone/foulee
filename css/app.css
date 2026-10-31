@@ -100,8 +100,8 @@ input[type=range]{width:100%;padding:0}
 .metric summary{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:8px 22px;padding:14px 0 10px;cursor:pointer;list-style:none}
 .metric summary::-webkit-details-marker{display:none}
 .metric summary:hover h4{color:var(--accent)}
-.metric h4::after{content:"";width:7px;height:7px;border:solid var(--muted);border-width:0 2px 2px 0;transform:rotate(-45deg);margin-left:2px;transition:transform .15s}
-.metric[open] h4::after{transform:rotate(45deg) translate(-2px,-2px)}
+.metric h4::before,.fdet>summary::before,.grpinfo>summary::before,.quality>summary::before{content:"";display:inline-block;flex:none;width:7px;height:7px;border:solid var(--muted);border-width:0 2px 2px 0;transform:rotate(-45deg);margin-right:10px;vertical-align:2px;transition:transform .15s}
+.metric[open] h4::before,.fdet[open]>summary::before,.grpinfo[open]>summary::before,.quality[open]>summary::before{transform:rotate(45deg) translate(-2px,-2px)}
 .metric .more{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:4px 22px;padding:0 0 14px}
 @media (max-width:760px){.metric summary,.metric .more{grid-template-columns:1fr}}
 .metric .name{display:flex;flex-direction:column;gap:5px;min-width:0}
@@ -109,7 +109,9 @@ input[type=range]{width:100%;padding:0}
 .metric h4 .chip{font-size:.85rem}
 .vals{line-height:1.2}.vals b{font-size:1.5rem;font-weight:700}
 .vals span{color:var(--muted);margin-left:6px}
-.fdet{margin:8px 0}.fdet summary{cursor:pointer;color:var(--accent);font-weight:600;padding:4px 0}
+.fdet,.grpinfo{border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:10px 16px;margin:12px 0}
+.fdet>summary,.grpinfo>summary,.quality>summary{cursor:pointer;font-weight:600;list-style:none}
+.fdet>summary::-webkit-details-marker,.grpinfo>summary::-webkit-details-marker,.quality>summary::-webkit-details-marker{display:none}
 .mphoto{margin:0 0 12px;display:flex;flex-direction:column;gap:6px}.mphoto canvas{width:100%;max-width:420px;height:auto;border-radius:8px}
 .what{font-size:.9rem;color:var(--muted);margin:0;max-width:46ch}
 .ref{font-size:.86rem;color:var(--muted)}
@@ -139,8 +141,10 @@ tr.clickable{cursor:pointer} tr.clickable:hover td{background:var(--bg)}
 .retenir h2{margin:0 0 8px;font-size:1.5rem}
 .retenir ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
 .retenir .r-fait{font-size:1.08rem}.retenir .r-action{font-size:1.08rem;color:var(--accent)}
-.grpinfo{margin-top:12px}.grpinfo>summary{cursor:pointer;list-style:none}.grpinfo>summary::-webkit-details-marker{display:none}
-.grpinfo>summary::after{content:" ▸";color:var(--muted)}.grpinfo[open]>summary::after{content:" ▾"}
+/* légende des jauges : plage publiée, marge de mesure, un trait par passage */
+.legende{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:center;margin:0}
+.legende span{display:inline-block;width:18px;height:8px;border-radius:4px;vertical-align:1px;margin-right:4px}
+.lg-f{background:var(--band)}.lg-c{background:var(--band);opacity:.38}.lg-t{width:2px!important;height:12px!important;background:var(--muted)}
 nav.toc a{padding-block:8px}
 a:focus-visible,summary:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .info{display:inline-grid;place-items:center;width:20px;height:20px;padding:0;border-radius:50%;border:1.5px solid var(--muted);background:none;color:var(--muted);font:700 .72rem/1 var(--body);font-style:italic;cursor:pointer;vertical-align:2px;flex:none}
@@ -156,7 +160,7 @@ a:focus-visible,summary:focus-visible,button:focus-visible{outline:2px solid var
 .req{font-weight:400;color:var(--muted);font-size:.85em}
 .small{font-size:.88rem}
 .quality{border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:10px 16px;margin-top:12px}
-.quality summary{cursor:pointer;font-weight:600}
+
 .quality ul{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:6px}
 .quality li{padding-left:22px;position:relative}
 .quality li::before{position:absolute;left:0;font-weight:700}
@@ -176,6 +180,6 @@ a:focus-visible,summary:focus-visible,button:focus-visible{outline:2px solid var
   .plan article,.metric,figure,.prio li,tr{break-inside:avoid}
   h2,h3{break-after:avoid}
   .see,.hint{display:none}
-  .metric h4::after{display:none}
+  .metric h4::before{display:none}
   a{color:inherit}
 }

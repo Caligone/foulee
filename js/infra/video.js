@@ -166,8 +166,11 @@ export async function scanVideo(v, fps, onProgress, source) {
       tot++; n += m[y * LW + x];
     }
     return tot ? n / tot : 0;
-  }).sort((a, b) => a - b);
-  mouvement.fond = hors[hors.length >> 1] ?? 0; // médiane sur la vidéo
+  });
+  // médiane sur la vidéo, et valeur image par image (0,1 s) pour décider passage par passage
+  const tri = hors.slice().sort((a, b) => a - b);
+  mouvement.fond = tri[tri.length >> 1] ?? 0;
+  mouvement.serie = hors.map((x, i) => [times[i], +x.toFixed(4)]);
   const scale = W / LW;
   for (const b of boxes) if (b.ok) { b.x0 *= scale; b.x1 *= scale; b.y0 *= scale; b.y1 *= scale; b.cx *= scale; }
   return { boxes, mouvement, LW, LH, W, H };

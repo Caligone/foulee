@@ -3,7 +3,7 @@
 **Analyse de foulée à partir d'une vidéo filmée au téléphone, 100 % dans ton navigateur.**
 *Running gait analysis from a phone video, entirely on your machine.*
 
-Foulée repère tes passages devant la caméra, estime ta posture image par image avec [MediaPipe Pose](https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker), puis mesure ta foulée : cadence, temps de contact, attaque du pied, inclinaison du tibia, distance talon–bassin, oscillation verticale, posture, chute du bassin… Chaque mesure est comparée à des repères publiés dans la littérature scientifique, avec son niveau de fiabilité.
+Foulée repère tes passages devant la caméra, estime ta posture image par image avec [MediaPipe Pose](https://ai.google.dev/edge/mediapipe/solutions/vision/pose_landmarker), puis mesure ta foulée : cadence, temps de contact, attaque du pied, inclinaison du tibia, distance talon–bassin, oscillation verticale, posture, inclinaison latérale du bassin… Chaque mesure est comparée à des repères publiés dans la littérature scientifique, avec son niveau de fiabilité.
 
 La vidéo n'est jamais envoyée nulle part : tout le calcul se fait localement, en WebAssembly.
 
@@ -26,8 +26,8 @@ Au premier lancement, `serveur.py` télécharge MediaPipe Tasks Vision et le mod
 ## Filmer
 
 1. Téléphone **fixe**, à hauteur de hanche (≈ 1 m), bien vertical.
-2. **De profil** : à 3–4 m de ta ligne de course, 2 ou 3 passages d'au moins 1 s dans le champ.
-3. **De dos** : dans l'axe, en t'éloignant sur 10–15 m. Indispensable pour la chute du bassin et les genoux.
+2. **De profil** : à 3–4 m de ta ligne de course, 3 passages d'au moins 2 s dans le champ.
+3. **De dos** : dans l'axe, en t'éloignant sur 10–15 m. Indispensable pour l'inclinaison latérale du bassin.
 4. Ta vraie allure, sur sol plat, pieds visibles en entier.
 5. **60 images/s** au minimum ; 120 ou 240 améliorent les temps de contact.
 
@@ -38,7 +38,7 @@ Tu peux enchaîner plusieurs vues dans une même vidéo : Foulée sépare automa
 | Vue | Mesures |
 |---|---|
 | Profil | allure, cadence, longueur de pas, temps de contact et de vol, part du temps au sol, oscillation verticale du bassin, angle du pied au contact (talon / médio-pied / avant-pied), inclinaison du tibia au contact, distance talon–bassin (overstriding), flexion du genou au contact et en appui, extension de hanche au décollage, inclinaison du buste, angle des coudes |
-| Dos | position de chaque pied par rapport à la ligne médiane (croisement), chute controlatérale du bassin (inclinaison de la caméra estimée et retirée), angle du genou dans le plan frontal |
+| Dos | position de chaque pied par rapport à la ligne médiane (croisement), inclinaison latérale du bassin en appui (inclinaison de la caméra estimée et retirée) |
 | Face | croisement des appuis (indicatif) |
 
 Le rapport propose aussi un lecteur image par image avec le squelette, des images clés annotées, un plan d'action argumenté, un historique local (IndexedDB) avec comparaison à l'analyse précédente, et un export JSON des mesures et des points de pose.

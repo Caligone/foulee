@@ -4,12 +4,12 @@
 import { loadPose, openVideo, scanVideo, findPassages, poseOnPassage } from './infra/video.js';
 import { openFrames } from './infra/images.js';
 import { ALGO, mesurer } from './domaine/analyse.js';
-import { cameraBouge } from './domaine/qualite.js';
+import { cameraBouge, fondPassage } from './domaine/analyse.js';
 
 export const ETAPES = ['Lecture de la vidéo', 'Chargement du modèle de pose', 'Repérage des passages', 'Estimation de pose image par image', 'Calcul des mesures'];
 const poses = {};
 
-// options : { height (m), weight, fps (forcé, sinon détecté), label, modelUrl }
+// options : { height (m), sexe ('femme' | 'homme', facultatif), fps (forcé, sinon détecté), label, modelUrl }
 // rappels : { onStep(i, message), onProgress(0..1), onFrame(crop, lm, x0, y0, côté), signal }
 export async function analyser(file, options, { onStep = () => {}, onProgress = () => {}, onFrame = () => {}, signal } = {}) {
   const stop = () => { if (signal?.aborted) throw new Error('Analyse annulée.'); };
@@ -52,15 +52,15 @@ export async function analyser(file, options, { onStep = () => {}, onProgress = 
       const frames = await poseOnPassage(v, pose.landmarker, p, scan, fps, (...args) => {
         stop(); onProgress(++fait / total); onFrame(...args);
       }, source);
-      // caméra qui bouge : appuis datés par rapport au bassin, mesures liées au sol non rendues (voir mesures.js)
-      passes.push({ kind: p.kind, dir: p.dir, t0: p.t0, t1: p.t1, ...(bouge ? { cameraMobile: true } : {}), frames });
+      // agitation du fond sur la fenêtre de ce passage : décide du mode caméra fixe ou mobile (voir analyse.js)
+      passes.push({ kind: p.kind, dir: p.dir, t0: p.t0, t1: p.t1, fond: fondPassage(scan.mouvement, p.t0, p.t1), frames });
     }
 
     onStep(4, '');
     for (const p of passes) p.metrics = mesurer(p, fps, options.height);
     return {
       id: crypto.randomUUID?.() ?? String(Date.now()), date: Date.now(), videoDate: file.lastModified, label: options.label ?? '',
-      videoName: file.name, height: options.height, weight: options.weight ?? null, fps, fpsNote, duration: v.duration,
+      videoName: file.name, height: options.height, sexe: options.sexe, fps, fpsNote, duration: v.duration,
       size: [v.videoWidth, v.videoHeight], model: pose.modelPath.includes('heavy') ? 'heavy' : 'autre', delegate: pose.delegate,
       decoder: source.kind, vfr: source.vfr ?? null, mouvement: scan.mouvement, algo: ALGO, passes,
     };

@@ -1,10 +1,10 @@
 // Rapport d'une analyse : à retenir, constats, pistes d'entraînement, mesures, vues de face / dos, lecteur, méthode.
-import { REPERES, bande, bandeLarge, classe, statut, libelle, typique, LIBELLES } from '../domaine/reperes.js';
+import { REPERES, bande, bandeLarge, classe, statut, libelle, seuil, LIBELLES } from '../domaine/reperes.js';
 import { VUES, ETATS, etat, profils, frontaux, appuis } from '../domaine/analyse.js';
 import { bilan } from '../domaine/recommandations.js';
 import { qualite } from '../domaine/qualite.js';
 import { drawFrame, drawTarget, css, PHOTO } from './dessin.js';
-import { fmt, pace, esc } from '../format.js';
+import { fmt, fu, pace, esc } from '../format.js';
 
 const $ = (s) => document.querySelector(s);
 export const CLASSE = { ok: 'c-ok', hors: 'c-warn', loin: 'c-bad', info: 'c-na', na: 'c-na' };
@@ -28,16 +28,16 @@ const source = ([nom, pmid]) => `<a href="https://pubmed.ncbi.nlm.nih.gov/${pmid
 // texte du repère sous la jauge : la plage des coureurs de référence, à ton allure quand la source le permet
 function repereTexte(R, d, ctx) {
   const u = R.unit;
-  if (R.nature === 'indicatif') return `Pas de repère publié, seuil indicatif de l'appli : ${fmt(R.seuil)} ${u}`;
+  if (R.nature === 'indicatif') return `Seuil indicatif : ${fu(seuil(R, ctx), u)}`;
   if (R.nature === 'aucun') return R.classes ? 'Médio-pied entre −1,6 et 8° ; aucun type d\'attaque n\'est meilleur en soi' : 'Pas de repère publié';
   const [b0, b1] = bande(R, ctx);
   const allure = R.pente && Number.isFinite(ctx?.speed) ? ` à ton allure (${fmt(ctx.speed * 3.6, 1)} km/h)` : '';
-  return R.sd ? `La plupart des coureurs${allure} : ${fmt(b0, d)} à ${fmt(b1, d)} ${u}` : `Repère de technique : ${fmt(b0)} à ${fmt(b1)} ${u}`;
+  return R.sd ? `La plupart des coureurs${allure} : ${fmt(b0, d)} à ${fu(b1, u, d)}` : `Repère de technique : ${fmt(b0)} à ${fu(b1, u)}`;
 }
 
 const pos = (x, sc) => Math.max(0, Math.min(100, (x - sc[0]) / (sc[1] - sc[0]) * 100));
-function mesuresHTML(prof, exercices) {
-  const ty = typique(prof.map((p) => p.metrics)), n = prof.length;
+function mesuresHTML(prof, exercices, ty) {
+  const n = prof.length;
   const pisteDe = (k) => exercices.findIndex((x) => x.vise.includes(k));
   let h = '';
   for (const [g, keys] of GROUPES) {
@@ -51,23 +51,23 @@ function mesuresHTML(prof, exercices) {
       const vals = prof.map((p) => p.metrics[k]).filter(Number.isFinite);
       const rk = { heel_hip_pct: 'heel_hip_cm' }[k] ?? k;
       const r0 = prof[0].metrics.ranges?.[rk];
-      const spread = n > 1 && vals.length ? `médiane de ${n} passages, de ${fmt(Math.min(...vals), d)} à ${fmt(Math.max(...vals), d)} ${u}`
-        : r0 && k !== 'heel_hip_pct' ? `tes ${prof[0].metrics.nSteps} appuis : de ${fmt(r0[0])} à ${fmt(r0[1])} ${u}` : '1 passage';
+      const spread = n > 1 && vals.length ? `médiane de ${n} passages, de ${fmt(Math.min(...vals), d)} à ${fu(Math.max(...vals), u, d)}`
+        : r0 && k !== 'heel_hip_pct' ? `tes ${prof[0].metrics.nSteps} appuis : de ${fmt(r0[0])} à ${fu(r0[1], u)}` : '1 passage';
       const extra = R.classes && Number.isFinite(v) ? ` <span>${classe(R, v)}</span>` : k === 'heel_hip_pct' ? ` <span>soit ${fmt(ty.heel_hip_cm)} cm</span>` : '';
       const rows = prof.map((p, i) => {
         const r = p.metrics.ranges?.[rk];
-        return `<tr><td>Passage ${i + 1}</td><td class="num">${pace(p.metrics.pace)}/km</td><td class="num">${fmt(p.metrics[k], d)} ${u}</td>${k !== 'heel_hip_pct' ? `<td class="num muted">${r ? `${fmt(r[0])} à ${fmt(r[1])} ${u}` : ''}</td>` : ''}</tr>`;
+        return `<tr><td>Passage ${i + 1}</td><td class="num">${pace(p.metrics.pace)}/km</td><td class="num">${fu(p.metrics[k], u, d)}</td>${k !== 'heel_hip_pct' ? `<td class="num muted">${r ? `${fmt(r[0])} à ${fu(r[1], u)}` : ''}</td>` : ''}</tr>`;
       }).join('');
       // une ligne par mesure ; le détail (passages, source, fiabilité) ne s'ouvre d'office que hors repère
       h += `<details class="metric" id="m-${k}"${st === 'hors' || st === 'loin' ? ' open' : ''}><summary>
         <div class="name"><h4>${R.label} ${info(`<p>${R.what}</p><p class="muted">${spread[0].toUpperCase() + spread.slice(1)}.</p>`, `Ce que mesure : ${R.label}`)} ${chip(st, indicatif ? 'Indicatif (caméra mobile)' : !Number.isFinite(v) && prof.some((p) => p.metrics.cameraMobile) ? 'Non mesuré (caméra mobile)' : libelle(k, st, v, ty))}</h4>
-        <div class="vals"><b>${fmt(v, d)} ${u}</b>${extra}${piste >= 0 ? ` <a href="#piste-${piste + 1}" class="see">voir la piste ${piste + 1}</a>` : ''}</div></div>
-        <div><div class="gauge" role="img" aria-label="${R.label} : ${fmt(v, d)} ${u}. ${repereTexte(R, d, ty)}"><div class="track"></div>
+        <div class="vals"><b>${fu(v, u, d)}</b>${extra}${piste >= 0 ? ` <a href="#piste-${piste + 1}" class="see">voir la piste ${piste + 1}</a>` : ''}</div></div>
+        <div><div class="gauge" role="img" aria-label="${R.label} : ${fu(v, u, d)}. ${repereTexte(R, d, ty)}"><div class="track"></div>
         ${bl ? `<div class="bandl" style="left:${pos(bl[0], R.sc)}%;width:${pos(bl[1], R.sc) - pos(bl[0], R.sc)}%"></div>` : ''}
         ${b ? `<div class="bandz" style="left:${pos(b[0], R.sc)}%;width:${pos(b[1], R.sc) - pos(b[0], R.sc)}%"></div>` : ''}
         ${n > 1 ? vals.map((x) => `<div class="pt" style="left:${pos(x, R.sc)}%"></div>`).join('') : ''}
         ${Number.isFinite(v) ? `<div class="dot ${CLASSE[st]}" style="left:${pos(v, R.sc)}%"></div>` : ''}
-        <div class="ticks"><span>${fmt(R.sc[0])}</span><span>${fmt(R.sc[1])} ${u}</span></div></div>
+        <div class="ticks"><span>${fmt(R.sc[0])}</span><span>${fu(R.sc[1], u)}</span></div></div>
         <p class="rel">${repereTexte(R, d, ty)}${n > 1 ? ' · un trait = un passage' : ''}</p></div></summary>
         <div class="more"><div>${PHOTO[k] ? `<figure class="mphoto"><canvas width="420" height="420" data-k="${k}"></canvas><figcaption></figcaption></figure>` : ''}${n > 1 ? `<div class="tablewrap"><table><thead><tr><th>Passage</th><th>Allure</th><th>Valeur</th>${k !== 'heel_hip_pct' ? '<th>Plage des appuis</th>' : ''}</tr></thead><tbody>${rows}</tbody></table></div>` : ''}</div>
         <div><p class="ref">${R.ref}</p><p class="rel">Fiabilité ${R.fiabilite}</p></div></div></details>`;
@@ -77,13 +77,13 @@ function mesuresHTML(prof, exercices) {
   return h;
 }
 
-function frontalHTML(p) {
+function frontalHTML(p, biaisDejaDit) {
   const m = p.metrics ?? {}, e = etat(p), titre = `<h3>${VUES[p.kind]} · ${fmt(p.t0, 1)}–${fmt(p.t1, 1)} s</h3>`;
   const hid = m.masked ? `${m.masked} appui${m.masked > 1 ? 's' : ''} ignoré${m.masked > 1 ? 's' : ''} : jambes mal visibles (obstacle, sortie du cadre).` : '';
   if (e === 'jambes confondues') return `${titre}<p class="empty">Passage non chiffré : le modèle confond les jambes (${m.confused} appuis détectés en même temps que l'autre pied, ce qui est impossible en course). Filme téléphone à hauteur de hanche et arrête-toi à 10–15 m.</p>`;
   if (e !== 'exploitable') return `${titre}<p class="empty">${hid || 'Aucun appui repéré sur ce passage : pieds masqués ou coureur trop loin.'}</p>`;
   const back = p.kind === 'dos';
-  const warn = m.obliqueWarn ? '<p class="note">Le coureur se déplace de biais par rapport à la caméra : largeur d\'appui, bassin et genou sont faussés par la perspective. Mesures indicatives seulement.</p>' : '';
+  const warn = m.obliqueWarn && !biaisDejaDit ? '<p class="note">Le coureur se déplace de biais par rapport à la caméra : largeur d\'appui, bassin et genou sont faussés par la perspective. Mesures indicatives seulement.</p>' : '';
   const rows = m.contacts.map((c) => `<tr><td>${c.side}</td><td class="num">${fmt(c.f0)}–${fmt(c.f1)}</td><td class="num">${fmt(c.lateral)} %</td><td>${c.lateral < 0 ? 'croise' : 'de son côté'}</td>${back ? `<td class="num">${fmt(c.drop, 1)}°</td>` : ''}</tr>`).join('');
   const cotes = [m.drop.gauche, m.drop.droite].filter(Number.isFinite), sd = statut('drop', cotes.length ? Math.max(...cotes) : NaN);
   return `${titre.replace('</h3>', ` ${info(`Pied / ligne médiane : position du talon par rapport au milieu du bassin, en % de la largeur du bassin (négatif = le pied croise la ligne), sans moyenne publiée. ${back ? `Inclinaison latérale du bassin : ${REPERES.drop.ref} Inclinaison de caméra estimée et retirée : ${fmt(m.roll, 1)}°.` : 'De face, le bassin n\'est pas chiffré : filme de dos pour l\'obtenir.'}`, 'Comment lire cette vue')}</h3>`)}${warn}${hid ? `<p class="note">${hid}</p>` : ''}
@@ -95,7 +95,7 @@ function frontalHTML(p) {
 // qualité du tournage : repliée si tout va bien, ouverte s'il y a quelque chose à changer
 function qualiteHTML(a) {
   const q = qualite(a), ko = q.filter((x) => !x.ok);
-  return `<details class="quality" id="tournage"><summary>${ko.length ? `Tournage : ${ko.length} point${ko.length > 1 ? 's' : ''} à améliorer pour la prochaine vidéo` : 'Tournage : rien à redire'}</summary>
+  return `<details class="quality" id="tournage"><summary>${ko.length ? `Tournage : ${ko.length} conseil${ko.length > 1 ? 's' : ''} pour la prochaine vidéo` : 'Tournage : rien à redire'}</summary>
     <ul>${q.map((x) => `<li class="${x.ok ? 'qok' : 'qko'}">${x.texte}${x.conseil ? `<span>${x.conseil}</span>` : ''}</li>`).join('')}</ul></details>`;
 }
 
@@ -106,7 +106,7 @@ function retenirHTML(a, r) {
     r.aucunProfil ? '<li class="r-fait"><b>Pas de mesure de profil</b> : aucun passage de profil exploitable. Les mesures principales (cadence, contact, attaque du pied) manquent.</li>'
       : r.principal ? `<li class="r-fait"><b>${r.principal.t}.</b> ${r.principal.d}</li>`
       : '<li class="r-fait"><b>Rien de marquant</b> : tes mesures de profil sont proches des repères publiés.</li>',
-    r.action ? `<li class="r-action">→ <b>Essaie :</b> <a href="#piste-1" class="see">${r.action.t.replace(/^./, (c) => c.toLowerCase())}</a>.</li>` : '',
+    r.action ? `<li class="r-action">→ <b>Essaie :</b> <a href="#piste-${r.numeroAction}" class="see">${r.action.t.replace(/^./, (c) => c.toLowerCase())}</a>.</li>` : '',
     r.moyenne.length ? `<li>Dans la moyenne : ${r.moyenne.join(', ')}.</li>` : '',
     r.resume ? `<li class="muted">Allure ${pace(r.resume.pace)} /km · cadence ${fmt(r.resume.cadence)} pas/min · contact ${fmt(r.resume.contact)} ms · ${r.appuis}</li>` : '',
     `<li class="muted">${ko ? `Tournage : ${ko} conseil${ko > 1 ? 's' : ''} pour la prochaine vidéo` : 'Tournage : rien à redire'} · <a href="#tournage" class="see">voir</a></li>`,
@@ -119,7 +119,7 @@ function retenirHTML(a, r) {
 export async function afficherRapport(a, actions) {
   actions.show('report');
   const prof = profils(a), fr = frontaux(a);
-  const { constats, exercices, retenir } = bilan(a);
+  const { constats, exercices, retenir, typique } = bilan(a);
   nBulles = 0;
   const d = new Date(a.videoDate || a.date);
   const title = a.label || `Analyse du ${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`;
@@ -143,8 +143,8 @@ export async function afficherRapport(a, actions) {
       <td class="num">${run ? `<span class="big">${pace(m.pace)}</span> /km` : '—'}</td><td class="num">${run ? `<span class="big">${fmt(m.cadence)}</span> pas/min` : '—'}</td>
       <td class="num">${run ? `${fmt(m.step_len, 2)} m` : '—'}</td><td class="num">${run ? `${fmt(m.contact_ms)} · ${fmt(m.flight_ms)} ms` : '—'}</td><td>${app}</td></tr>`;
   }).join('')}</tbody></table></div></details>${qualiteHTML(a)}</section>
-  ${prof.length ? `<section id="mesures"><h2>Mesures de profil ${info('<p>Clique sur une mesure pour voir ta photo, le repère publié et la fiabilité.</p><p><b>Dans la moyenne</b> : comme la plupart des coureurs de référence (à ± 1 écart-type). <b>Plus haut / plus bas que la moyenne</b> : au-delà, une fois prise en compte la marge de mesure ; en vert si ce côté ne pose pas question. <b>Bien plus</b> : au-delà de 2 écarts-types. <b>Proche</b> : hors de la plage, mais dans la marge de mesure.</p>', 'Comment lire les mesures')}</h2>${mesuresHTML(prof, exercices)}</section>` : '<section id="mesures"><h2>Mesures de profil</h2><p class="empty">Aucun passage de profil exploitable. Il faut 3 passages de profil d\'au moins 2 s, pieds visibles en entier, téléphone fixe à 3–4 m de la ligne de course. <a href="#" class="see" data-view="new">Revoir comment filmer</a></p></section>'}
-  ${a.passes.some((p) => p.kind !== 'profil') ? `<section id="frontal"><h2>Vue de face / de dos</h2>${a.passes.filter((p) => p.kind !== 'profil').map(frontalHTML).join('')}</section>` : ''}
+  ${prof.length ? `<section id="mesures"><h2>Mesures de profil ${info('<p>Clique sur une mesure pour voir ta photo, le repère publié et la fiabilité.</p><p><b>Dans la moyenne</b> : comme la plupart des coureurs de référence (à ± 1 écart-type). <b>Plus haut / plus bas que la moyenne</b> : au-delà, une fois prise en compte la marge de mesure ; en vert si ce côté ne pose pas question. <b>Bien plus</b> : au-delà de 2 écarts-types. <b>Proche</b> : hors de la plage, mais dans la marge de mesure.</p>', 'Comment lire les mesures')}</h2><p class="legende small muted"><span class="lg-f"></span> la plupart des coureurs <span class="lg-c"></span> marge de mesure <span class="lg-t"></span> un passage</p>${mesuresHTML(prof, exercices, typique)}</section>` : '<section id="mesures"><h2>Mesures de profil</h2><p class="empty">Aucun passage de profil exploitable. Il faut 3 passages de profil d\'au moins 2 s, pieds visibles en entier, téléphone fixe à 3–4 m de la ligne de course. <a href="#" class="see" data-view="new">Revoir comment filmer</a></p></section>'}
+  ${a.passes.some((p) => p.kind !== 'profil') ? `<section id="frontal"><h2>Vue de face / de dos</h2>${a.passes.filter((p) => p.kind !== 'profil').map((p, i, l) => frontalHTML(p, l.slice(0, i).some((x) => x.metrics?.obliqueWarn))).join('')}</section>` : ''}
   <section id="lecteur" class="noprint"><details class="fdet"><summary>Lecteur image par image (pour les curieux)</summary><div class="player">
     <canvas id="pc" width="576" height="576" aria-label="Image analysée avec le squelette"></canvas>
     <div class="pcontrols">
@@ -171,7 +171,8 @@ export async function afficherRapport(a, actions) {
     R.querySelectorAll('.info').forEach((b) => b.addEventListener('click', (e) => { e.preventDefault(); document.getElementById(b.getAttribute('popovertarget'))?.classList.toggle('ouverte'); }));
   }
   $('#exp').onclick = () => exporterJSON(a);
-  $('#print').onclick = () => { R.querySelectorAll('details.metric').forEach((x) => { x.open = true; }); print(); };
+  $('#print').onclick = () => print();
+  onbeforeprint = () => R.querySelectorAll('details').forEach((x) => { x.open = true; }); // aussi avec Ctrl+P
   // liens internes : défilement doux, et la mesure visée s'ouvre
   R.querySelectorAll('a[href^="#"]').forEach((l) => l.addEventListener('click', (e) => {
     e.preventDefault();
@@ -191,12 +192,11 @@ export async function afficherRapport(a, actions) {
   }
   $('#again').onclick = () => actions.show('new');
   lecteur(a);
-  await photosMesures(a, prof);
+  await photosMesures(a, prof, typique);
 }
 
 // photo de chaque mesure : l'appui le plus proche de la valeur retenue (médiane), pas le pire
-async function photosMesures(a, prof) {
-  const ty = typique(prof.map((p) => p.metrics));
+async function photosMesures(a, prof, ty) {
   for (const c of document.querySelectorAll('.mphoto canvas')) {
     const k = c.dataset.k; let best = null;
     for (const p of prof) for (const ap of appuis(p)) {
@@ -206,7 +206,7 @@ async function photosMesures(a, prof) {
     if (!best) { c.closest('figure').remove(); continue; }
     const st = statut(k, ty[k], ty), col = css({ ok: '--ok', hors: '--warn', loin: '--bad' }[st] ?? '--na');
     await drawTarget(c, best.f, k, best.ap.mesures[k], best.p.dir, col);
-    c.nextElementSibling.textContent = `Couleur : ${PHOTO[k]} · vert : le repère · ton appui le plus habituel (passage ${a.passes.indexOf(best.p) + 1})`;
+    c.nextElementSibling.textContent = `Couleur : ${PHOTO[k]} · vert : le repère · l'appui le plus proche de ta valeur habituelle (passage ${prof.indexOf(best.p) + 1} de profil)`;
   }
 }
 

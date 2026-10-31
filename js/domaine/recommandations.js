@@ -6,15 +6,15 @@
 //   - « verifier » / « comparer » : à revoir sur une autre vidéo, sans repère publié (st = 'info') ;
 //   - « manque » : une vue n'a pas pu être mesurée (st = 'na').
 
-import { REPERES, statut, dansBande, typique, bande } from './reperes.js';
+import { REPERES, statut, dansBande, typique, bande, libelle, seuil } from './reperes.js';
 import { profils, frontaux } from './analyse.js';
-import { fmt } from '../format.js';
+import { fmt, fu } from '../format.js';
 
 const RANG = { ok: 0, hors: 1, loin: 2 };
 const enEcart = (st) => (RANG[st] ?? 0) > 0; // « na » et « info » ne déclenchent rien
 const pire = (a, b) => ((RANG[a] ?? 0) >= (RANG[b] ?? 0) ? a : b);
 const plusGrand = (...v) => { const f = v.filter(Number.isFinite); return f.length ? Math.max(...f) : NaN; };
-const plage = (k, ctx) => { const [a, b] = bande(REPERES[k], ctx); return `${fmt(a)} à ${fmt(b)} ${REPERES[k].unit}`; };
+const plage = (k, ctx) => { const [a, b] = bande(REPERES[k], ctx); return `${fmt(a)} à ${fu(b, REPERES[k].unit)}`; };
 const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
 
 /**
@@ -23,10 +23,11 @@ const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
  * @typedef {{ cle: string, vise: string[], t: string, li: string[], why: string, sources: [string, number][],
  *   objectif?: { k: string, min: number, max: number } }} Piste
  */
-/** @param {{ passes: import('./analyse.js').Passage[] }} a */
+/** @param {{ passes: import('./analyse.js').Passage[], sexe?: 'homme' | 'femme' }} a */
 export function bilan(a) {
   const prof = profils(a), fr = frontaux(a);
-  const ty = typique(prof.map((p) => p.metrics));
+  // valeurs typiques et contexte des repères (allure, sexe) : une seule source pour tout le rapport
+  /** @type {Record<string, any>} */ const ty = { ...typique(prof.map((p) => p.metrics)), sexe: a.sexe };
   /** @type {Constat[]} */ const constats = [];
   /** @type {Piste[]} */ const exercices = [];
 
@@ -43,7 +44,7 @@ export function bilan(a) {
       constats.push({ role: 'ecart', st: pire(sTibia, sTalon), cle: 'shank_deg', t: 'Le pied se pose devant le bassin',
         d: `Au contact, le tibia penche de ${fmt(ty.shank_deg)}° vers l'avant et le talon arrive ${fmt(ty.heel_hip_cm)} cm devant le bassin : la foulée freine un peu à chaque pas.` });
       const cad = ty.cadence; // cadence habituelle (médiane), pas celle d'un passage isolé
-      exercices.push({ cle: 'cadence', vise: ['shank_deg', 'heel_hip_pct', 'cadence'],
+      exercices.push({ cle: 'cadence', vise: ['shank_deg', 'heel_hip_pct'],
         t: `Pour ramener le pied sous le bassin : monter la cadence de 5 à 7 % (≈ ${fmt(cad * 1.05)} à ${fmt(cad * 1.07)} pas/min)`,
         objectif: { k: 'cadence', min: cad * 1.05, max: cad * 1.07 },
         li: ['Métronome de la montre ou musique à ce tempo, par blocs de 2 min, puis sur toute la sortie.', 'Même allure : le pas raccourcit de lui-même et le pied revient sous le bassin.'],
@@ -66,9 +67,10 @@ export function bilan(a) {
 
   // pieds qui croisent : un seul constat pour toutes les vues ; pas de piste si la vue est de biais (mesure faussée)
   const croise = fr.reduce((n, p) => n + p.metrics.crossings, 0), total = fr.reduce((n, p) => n + p.metrics.contacts.length, 0);
-  if (croise > 0 && fr.some((p) => p.metrics.obliqueWarn)) {
+  const frMobile = fr.some((p) => p.cameraMobile);
+  if (croise > 0 && (frMobile || fr.some((p) => p.metrics.obliqueWarn))) {
     constats.push({ role: 'verifier', st: 'info', label: 'À vérifier', cle: 'frontal', t: 'Appuis peut-être sur une ligne',
-      d: `${croise} appui${croise > 1 ? 's' : ''} sur ${total} semblent croiser la ligne médiane du bassin, mais la vue est prise de biais. Refilme de face ou de dos, dans l'axe exact du téléphone, pour vérifier.` });
+      d: `${croise} appui${croise > 1 ? 's' : ''} sur ${total} semblent croiser la ligne médiane du bassin, mais ${frMobile ? 'la caméra bouge' : 'la vue est prise de biais'}. Refilme de face ou de dos, téléphone posé dans l'axe exact de la course, pour vérifier.` });
   } else if (croise > 0) {
     constats.push({ role: 'comparer', st: 'info', label: 'À comparer', cle: 'frontal', t: 'Appuis presque sur une ligne',
       d: `${croise} appui${croise > 1 ? 's' : ''} sur ${total} croisent la ligne médiane du bassin. Pas de moyenne publiée : à comparer d'une vidéo à l'autre.` });
@@ -78,15 +80,27 @@ export function bilan(a) {
       sources: [['Meardon & Derrick 2014', 24935171], ['Brindle 2014', 23831430]] });
   }
   const drops = fr.filter((p) => p.kind === 'dos' && !p.metrics.obliqueWarn).map((p) => plusGrand(p.metrics.drop.gauche, p.metrics.drop.droite));
-  const d = plusGrand(...drops), sDrop = statut('drop', d);
-  if (enEcart(sDrop)) {
-    constats.push({ role: 'ecart', st: sDrop, cle: 'frontal', t: 'Bassin qui penche en appui', d: `Jusqu'à ${fmt(d, 1)}° d'inclinaison latérale, au-delà du seuil indicatif de ${fmt(REPERES.drop.seuil)}°.` });
+  const d = plusGrand(...drops), sDrop = statut('drop', d, ty);
+  if (enEcart(sDrop) && frMobile) constats.push({ role: 'verifier', st: 'info', label: 'À vérifier', cle: 'frontal', t: 'Bassin qui semble pencher en appui',
+    d: `Jusqu'à ${fmt(d, 1)}° d'inclinaison latérale, mais la caméra bouge : à confirmer téléphone posé.` });
+  else if (enEcart(sDrop)) {
+    constats.push({ role: 'ecart', st: sDrop, cle: 'frontal', t: 'Bassin qui penche en appui', d: `Jusqu'à ${fmt(d, 1)}° d'inclinaison latérale, au-delà du seuil indicatif de ${fmt(seuil(REPERES.drop, ty))}°.` });
     exercices.push({ cle: 'frontal', vise: [], t: 'Pour un bassin plus horizontal : courir devant un repère',
       li: ['Quelques minutes devant une vitrine ou en te filmant, en gardant le bassin horizontal à chaque appui.', 'En renfort musculaire général, du gainage latéral deux fois par semaine.'],
       why: 'Garder le bassin horizontal en appui fait partie des critères de technique observés en analyse vidéo de la course. C\'est le travail du geste en course, avec un retour visuel, qui le fait évoluer.',
       sources: [['Souza 2016 (analyse vidéo)', 26616185]] });
   }
 
+  if (prof.length) {
+    const couvertes = new Set(['shank_deg', 'heel_hip_pct', 'vosc_cm', ...(ty.trunk < REPERES.trunk.m ? ['trunk'] : [])]);
+    const indicatives = new Set(prof.flatMap((p) => p.metrics.indicatifs ?? []));
+    for (const k of ['cadence', 'contact_ms', 'duty', 'knee_max', 'trunk']) {
+      if (couvertes.has(k) || indicatives.has(k)) continue;
+      const st = statut(k, ty[k], ty);
+      if (enEcart(st)) constats.push({ role: 'ecart', st, cle: k, t: `${REPERES[k].label} : ${libelle(k, st, ty[k], ty).toLowerCase()}`,
+        d: `${fu(ty[k], REPERES[k].unit, k === 'vosc_cm' ? 1 : 0)} ; ${REPERES[k].sd ? `la plupart des coureurs${REPERES[k].pente ? ' à ton allure' : ''} : ${plage(k, ty)}` : `seuil indicatif : ${fu(seuil(REPERES[k], ty), REPERES[k].unit)}`}.` });
+    }
+  }
   if (!fr.some((p) => p.kind === 'dos')) {
     const filme = a.passes.some((p) => p.kind === 'dos');
     constats.push({ role: 'manque', st: 'na', t: filme ? 'Vue de dos non exploitable' : 'Vue de dos manquante', d: filme
@@ -101,14 +115,16 @@ export function bilan(a) {
 // « À retenir » : ce qu'un coureur doit lire en 10 secondes, calculé ici pour être testable
 function retenir(prof, ty, constats, exercices) {
   const principal = constats.find((c) => c.role === 'ecart');
-  const visees = new Set(exercices.flatMap((x) => x.vise));
+  // la piste à essayer est celle du constat principal (et son numéro dans la liste), pas la première venue
+  const iAction = principal ? exercices.findIndex((x) => x.cle === principal.cle || x.vise.includes(principal.cle)) : (exercices.length ? 0 : -1);
+  const visees = new Set(exercices.flatMap((x) => [...x.vise, x.objectif?.k].filter(Boolean)));
   // « dans la moyenne » : valeur dans la bande publiée, et pas une mesure qu'une piste cherche à faire bouger
   const moyenne = prof.length ? [['cadence', 'cadence'], ['contact_ms', 'temps de contact'], ['duty', 'temps au sol'], ['vosc_cm', 'rebond vertical']]
     .filter(([k]) => !visees.has(k) && dansBande(k, ty[k], ty)).map(([, t]) => t) : [];
   return {
     aucunProfil: !prof.length,
     principal: principal ?? null,
-    action: exercices[0] ?? null,
+    action: iAction >= 0 ? exercices[iAction] : null, numeroAction: iAction + 1,
     moyenne,
     resume: prof.length ? { pace: ty.pace, cadence: ty.cadence, contact: ty.contact_ms } : null,
     appuis: prof.length ? pluriel(prof.reduce((n, p) => n + p.metrics.nSteps, 0), 'appui') : '',
