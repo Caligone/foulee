@@ -3,18 +3,15 @@
 
 const CDN_VERSION = '0.10.14';
 const CDN_BASE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${CDN_VERSION}`;
-const MODEL_REMOTE = {
-  full: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task',
-  heavy: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task',
-};
+const MODEL_REMOTE = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task';
 const V = (p) => new URL('../vendor/' + p, import.meta.url).href;
-const MODEL_LOCAL = { full: V('models/pose_landmarker_full.task'), heavy: V('models/pose_landmarker_heavy.task') };
+const MODEL_LOCAL = V('models/pose_landmarker_heavy.task');
 
 async function exists(url) {
   try { const r = await fetch(url, { method: 'HEAD' }); return r.ok; } catch { return false; }
 }
 
-export async function loadPose(variant = 'heavy', overrideModel = null, onStatus = () => {}) {
+export async function loadPose(overrideModel = null, onStatus = () => {}) {
   let vision;
   onStatus('Chargement de MediaPipe…');
   const localBundle = await exists(V('vision_bundle.mjs'));
@@ -22,8 +19,8 @@ export async function loadPose(variant = 'heavy', overrideModel = null, onStatus
   const wasmBase = (await exists(V('wasm/vision_wasm_internal.wasm'))) ? V('wasm') : `${CDN_BASE}/wasm`;
   const fileset = await vision.FilesetResolver.forVisionTasks(wasmBase);
   let modelPath = overrideModel;
-  if (!modelPath) modelPath = (await exists(MODEL_LOCAL[variant])) ? MODEL_LOCAL[variant] : MODEL_REMOTE[variant];
-  onStatus(`Chargement du modèle de pose (${variant})…`);
+  if (!modelPath) modelPath = (await exists(MODEL_LOCAL)) ? MODEL_LOCAL : MODEL_REMOTE;
+  onStatus('Chargement du modèle de pose…');
   let lm, delegate = 'GPU';
   try {
     lm = await vision.PoseLandmarker.createFromOptions(fileset, {

@@ -19,7 +19,7 @@ python3 serveur.py
 
 Ou en double-clic : `Lancer Foulée.command` sur macOS (clic droit › Ouvrir la première fois), `lancer.bat` sous Windows.
 
-Au premier lancement, `serveur.py` télécharge MediaPipe Tasks Vision et les modèles de pose dans `vendor/` (≈ 60 Mo). Ensuite, plus rien ne sort de ta machine : `python3 serveur.py --offline` fonctionne sans connexion. Le serveur n'écoute que sur `127.0.0.1`.
+Au premier lancement, `serveur.py` télécharge MediaPipe Tasks Vision et le modèle de pose dans `vendor/` (≈ 50 Mo). Ensuite, plus rien ne sort de ta machine : `python3 serveur.py --offline` fonctionne sans connexion. Le serveur n'écoute que sur `127.0.0.1`.
 
 > Les `.MOV` d'iPhone (HEVC) se lisent dans Safari et dans Chrome sur Mac. Ailleurs, exporte en MP4 H.264, ou règle l'iPhone sur Réglages › Appareil photo › Formats › « Le plus compatible ».
 

@@ -2,7 +2,7 @@ Tu reprends **Foulée**, une app web d'analyse de foulée à partir d'une vidéo
 
 ## Le projet
 - Vanilla JS en modules ES, **aucune étape de build**. MediaPipe Tasks Vision 0.10.14 (PoseLandmarker) en WebAssembly. Interface en français.
-- `serveur.py` : serveur sur 127.0.0.1:8777. Au premier lancement, il télécharge MediaPipe et les modèles `full`/`heavy` dans `vendor/` (non versionné). Option `--offline` pour ne rien télécharger.
+- `serveur.py` : serveur sur 127.0.0.1:8777. Au premier lancement, il télécharge MediaPipe et le modèle `heavy` (seul proposé depuis le 31/10 : même verdict que `full` sur nos vidéos) dans `vendor/` (non versionné). Option `--offline` pour ne rien télécharger.
 - `js/engine.js` : ouverture vidéo, estimation des i/s (requestVideoFrameCallback), scan en lecture ×4 pour construire un fond médian, soustraction de fond, masque des zones toujours agitées (feuillage), fusion des fragments de corps, suivi temporel, classement des passages (profil / face / dos), puis pose image par image sur un recadrage de 512 px suivi d'une image à l'autre.
 - `js/metrics.js` :
   - **Profil** : appuis détectés par immobilité de la pointe du pied dans l'image (indépendant des étiquettes G/D, que MediaPipe inverse de profil). On ne garde que la plus longue portion où les pieds sont visibles (visibilité ≥ 0,85) et on filtre les appuis invraisemblables. Échelle : cuisse + jambe = 0,491 × taille, avec contrôle sur le tronc. Oscillation verticale par ajustement sinusoïdal.

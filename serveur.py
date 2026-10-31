@@ -28,7 +28,6 @@ DEPS = {
     'vendor/wasm/vision_wasm_internal.wasm': f'{MP}/wasm/vision_wasm_internal.wasm',
     'vendor/wasm/vision_wasm_nosimd_internal.js': f'{MP}/wasm/vision_wasm_nosimd_internal.js',
     'vendor/wasm/vision_wasm_nosimd_internal.wasm': f'{MP}/wasm/vision_wasm_nosimd_internal.wasm',
-    'vendor/models/pose_landmarker_full.task': f'{MODELS}/pose_landmarker_full/float16/1/pose_landmarker_full.task',
     'vendor/models/pose_landmarker_heavy.task': f'{MODELS}/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task',
 }
 
@@ -37,7 +36,7 @@ def fetch_deps():
     missing = {p: u for p, u in DEPS.items() if not os.path.exists(p)}
     if not missing:
         return
-    print('Premier lancement : téléchargement de MediaPipe et des modèles de pose (≈ 60 Mo)…')
+    print('Premier lancement : téléchargement de MediaPipe et du modèle de pose (≈ 50 Mo)…')
     for path, url in missing.items():
         os.makedirs(os.path.dirname(path), exist_ok=True)
         tmp = path + '.part'

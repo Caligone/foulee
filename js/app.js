@@ -53,8 +53,9 @@ async function run() {
   source.fps = fps;
   if (source.kind === 'seek') fpsNote += (fpsNote ? ' ' : '') + 'Ce navigateur ne décode pas cette vidéo image par image (WebCodecs) : analyse plus lente et temps moins précis. Chrome ou Safari font mieux, ou exporte la vidéo en MP4 H.264.';
   stepUI(1, `${v.videoWidth}×${v.videoHeight}, ${fmt(v.duration, 1)} s, ${fmt(fps, 2)} i/s${source.kind === 'seek' ? ' · décodage lent (sauts)' : ''}`);
-  const variant = params.get('model') ? 'test' : $('#model').value;
-  poseCache[variant] ??= await loadPose(variant === 'test' ? 'full' : variant, params.get('model'), (m) => { $('#run-msg').textContent = m; });
+  // modèle « heavy » seul ; ?model=<url> charge un autre modèle pour les tests
+  const variant = params.get('model') ?? 'heavy';
+  poseCache[variant] ??= await loadPose(params.get('model'), (m) => { $('#run-msg').textContent = m; });
   const pose = poseCache[variant];
   stepUI(2, 'Lecture accélérée de la vidéo pour repérer le coureur…');
   const scan = await scanVideo(v, fps, bar, source);
