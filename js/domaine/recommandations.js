@@ -22,7 +22,14 @@ export function bilan(a) {
   const ty = typique(prof.map((p) => p.metrics));
   const constats = [], exercices = [];
 
-  if (prof.length) {
+  const mobile = prof.some((p) => p.metrics.cameraMobile);
+  if (prof.length && mobile) {
+    // caméra mobile : angles au contact indicatifs ; on signale, sans piste d'entraînement
+    const sTibia = statut('shank_deg', ty.shank_deg, ty), sTalon = statut('heel_hip_pct', ty.heel_hip_pct, ty);
+    if (enEcart(sTibia) || enEcart(sTalon)) constats.push({ role: 'verifier', st: 'info', label: 'À vérifier', cle: 'shank_deg', t: 'Le pied semble se poser devant le bassin',
+      d: `Tibia à ${fmt(ty.shank_deg)}° au contact environ, mais la caméra bouge : appuis datés approximativement. Refilme téléphone posé pour confirmer.` });
+  }
+  if (prof.length && !mobile) {
     const sTibia = statut('shank_deg', ty.shank_deg, ty), sTalon = statut('heel_hip_pct', ty.heel_hip_pct, ty);
     if (enEcart(sTibia) || enEcart(sTalon)) {
       constats.push({ role: 'ecart', st: pire(sTibia, sTalon), cle: 'shank_deg', t: 'Le pied se pose devant le bassin',

@@ -156,7 +156,11 @@ export const LIBELLES = {
 export function libelle(k, st, v, ctx) {
   const R = REPERES[k];
   if (!R || st === 'na' || st === 'info' || !Number.isFinite(v)) return LIBELLES[st];
-  if (R.nature === 'indicatif') return st === 'hors' ? 'Au-delà du seuil indicatif' : 'En deçà du seuil indicatif';
+  if (R.nature === 'indicatif') {
+    // seuil maximal (talon, bassin) ou minimal (flexion du genou) : on dit de quel côté du seuil on est
+    const dessus = v > R.seuil;
+    return `${dessus ? 'Au-dessus' : 'En dessous'} du seuil indicatif`;
+  }
   const ref = R.sd ? 'la moyenne' : 'le repère', [b0, b1] = bande(R, ctx);
   if (v >= b0 && v <= b1) return R.sd ? 'Dans la moyenne' : 'Dans le repère';
   const sens = v > b1 ? 'haut' : 'bas';

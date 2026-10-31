@@ -48,7 +48,7 @@ export function appuis(p) {
 export const nbAppuis = (a) => profils(a).reduce((n, p) => n + p.metrics.nSteps, 0);
 
 export function mesurer(p, fps, height) {
-  try { return p.kind === 'profil' ? profileMetrics(p.frames, fps, height, p.dir) : frontalMetrics(p.frames, fps, p.kind); }
+  try { return p.kind === 'profil' ? profileMetrics(p.frames, fps, height, p.dir, { cameraMobile: !!p.cameraMobile }) : frontalMetrics(p.frames, fps, p.kind); }
   catch (e) { console.error(e); return { error: String(e) }; }
 }
 

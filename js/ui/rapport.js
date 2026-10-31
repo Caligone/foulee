@@ -44,7 +44,9 @@ function mesuresHTML(prof, exercices) {
     const pourInfo = keys.every((k) => REPERES[k].nature === 'aucun');
     h += pourInfo ? `<details class="grpinfo"><summary class="grp">${g}</summary>` : `<h3 class="grp">${g}</h3>`;
     for (const k of keys) {
-      const R = REPERES[k], d = DEC[k] ?? 0, v = ty[k], u = R.unit, st = statut(k, v, ty), b = R.nature === 'aucun' ? null : bande(R, ty);
+      const R = REPERES[k], d = DEC[k] ?? 0, v = ty[k], u = R.unit, b = R.nature === 'aucun' ? null : bande(R, ty);
+      // caméra mobile : mesure indicative (appuis datés par rapport au bassin), sans verdict
+      const indicatif = prof.some((p) => p.metrics.indicatifs?.includes(k)), st = indicatif ? 'info' : statut(k, v, ty);
       const bl = bandeLarge(k, ty)?.map((x) => Math.max(R.sc[0], Math.min(R.sc[1], x))), piste = pisteDe(k);
       const vals = prof.map((p) => p.metrics[k]).filter(Number.isFinite);
       const rk = { heel_hip_pct: 'heel_hip_cm' }[k] ?? k;
@@ -58,7 +60,7 @@ function mesuresHTML(prof, exercices) {
       }).join('');
       // une ligne par mesure ; le détail (passages, source, fiabilité) ne s'ouvre d'office que hors repère
       h += `<details class="metric" id="m-${k}"${st === 'hors' || st === 'loin' ? ' open' : ''}><summary>
-        <div class="name"><h4>${R.label} ${info(`<p>${R.what}</p><p class="muted">${spread[0].toUpperCase() + spread.slice(1)}.</p>`, `Ce que mesure : ${R.label}`)} ${chip(st, libelle(k, st, v, ty))}</h4>
+        <div class="name"><h4>${R.label} ${info(`<p>${R.what}</p><p class="muted">${spread[0].toUpperCase() + spread.slice(1)}.</p>`, `Ce que mesure : ${R.label}`)} ${chip(st, indicatif ? 'Indicatif (caméra mobile)' : !Number.isFinite(v) && prof.some((p) => p.metrics.cameraMobile) ? 'Non mesuré (caméra mobile)' : libelle(k, st, v, ty))}</h4>
         <div class="vals"><b>${fmt(v, d)} ${u}</b>${extra}${piste >= 0 ? ` <a href="#piste-${piste + 1}" class="see">voir la piste ${piste + 1}</a>` : ''}</div></div>
         <div><div class="gauge" role="img" aria-label="${R.label} : ${fmt(v, d)} ${u}. ${repereTexte(R, d, ty)}"><div class="track"></div>
         ${bl ? `<div class="bandl" style="left:${pos(bl[0], R.sc)}%;width:${pos(bl[1], R.sc) - pos(bl[0], R.sc)}%"></div>` : ''}

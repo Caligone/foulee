@@ -52,7 +52,8 @@ export async function analyser(file, options, { onStep = () => {}, onProgress = 
       const frames = await poseOnPassage(v, pose.landmarker, p, scan, fps, (...args) => {
         stop(); onProgress(++fait / total); onFrame(...args);
       }, source);
-      passes.push({ kind: p.kind, dir: p.dir, t0: p.t0, t1: p.t1, frames });
+      // caméra qui bouge : appuis datés par rapport au bassin, mesures liées au sol non rendues (voir mesures.js)
+      passes.push({ kind: p.kind, dir: p.dir, t0: p.t0, t1: p.t1, ...(bouge ? { cameraMobile: true } : {}), frames });
     }
 
     onStep(4, '');

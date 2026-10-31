@@ -82,7 +82,8 @@ function lstsq(X, y) {
 }
 
 // ================= PROFIL =================
-export function profileMetrics(allFrames, fps, heightM, dir) {
+// opts.cameraMobile : caméra qui suit ou bouge ; appuis datés par rapport au bassin, mesures liées au sol masquées
+export function profileMetrics(allFrames, fps, heightM, dir, opts = {}) {
   const flip = dir < 0;
   // on ne garde que la plus longue portion où les pieds sont bien visibles (herbe, bordure, sortie de champ…)
   const vis = allFrames.map((f) => f.lm ? mean(f.lm.slice(27, 33).map((p) => p[2])) : 0);
@@ -103,7 +104,7 @@ export function profileMetrics(allFrames, fps, heightM, dir) {
   const sh = LM.map((_, t) => mid(P(LM, t, L.shL), P(LM, t, L.shR)));
   const grad = (a) => a.map((_, t) => (a[Math.min(T - 1, t + 1)] - a[Math.max(0, t - 1)]) / ((t > 0 && t < T - 1) ? 2 : 1));
   const vx = med(grad(hip.map((h) => h[0])));
-  if (!(vx > 0.5)) return { error: 'déplacement trop faible' };
+  if (!opts.cameraMobile && !(vx > 0.5)) return { error: 'déplacement trop faible' };
   const legs = []; for (let t = 0; t < T; t++) for (const [h, k, a] of [[L.hipL, L.knL, L.anL], [L.hipR, L.knR, L.anR]])
     legs.push(norm(sub(P(LM, t, h), P(LM, t, k))) + norm(sub(P(LM, t, k), P(LM, t, a))));
   const legpx = med(legs), mpp = 0.491 * heightM / legpx;
@@ -139,11 +140,13 @@ export function profileMetrics(allFrames, fps, heightM, dir) {
   if (!footsOk) stances = [];
   // un appui ne peut pas commencer avant la fin du précédent moins une marge : on écarte les doublons
   stances = stances.filter((s, i) => i === 0 || s.ic > stances[i - 1].ic + 0.15 * fps);
+  // caméra mobile : le pied d'appui n'est plus immobile dans l'image, on date les appuis par rapport au bassin
+  if (opts.cameraMobile) stances = footsOk ? zeni(LM, T, fps).filter((z) => z.ic > edge && z.to < T - 2).map((z) => ({ ic: z.ic, to: z.to, xt: LM[z.ic][L.heL + z.pied][0], pied: z.pied })) : [];
   const legAt = (t, xc) => { const c = [0, 1].map((s) => Math.abs(LM[t][L.toL + s][0] - xc) + 2 * Math.max(0, ground[t] - LM[t][L.toL + s][1])); return c[0] <= c[1] ? 0 : 1; };
   const ids = (s) => [L.hipL + s, L.knL + s, L.anL + s, L.heL + s, L.toL + s];
   const footAng = (he, to) => deg(Math.atan2(he[1] - to[1], to[0] - he[0]));
   const steps = stances.map((st, k) => {
-    const { ic, to, xt } = st; const s = legAt(ic, xt);
+    const { ic, to, xt } = st; const s = st.pied ?? legAt(ic, xt); // caméra mobile : le pied daté par rapport au bassin
     const [h, kn, an, he, toe] = ids(s).map((j) => P(LM, ic, j));
     let prev = an; const kf = [];
     for (let t = ic; t <= ic + Math.floor(0.5 * (to - ic)); t++) {
@@ -169,7 +172,7 @@ export function profileMetrics(allFrames, fps, heightM, dir) {
   // oscillation verticale du bassin (données brutes, ajustement sinusoïdal)
   const yr = raw.map((r) => -((r[L.hipL][1] + r[L.hipR][1]) / 2));
   const perFrames = Number.isFinite(stepMs) ? stepMs / 1000 * fps : 0.36 * fps;
-  const fit = sineAmp(yr, perFrames);
+  const fit = opts.cameraMobile ? null : sineAmp(yr, perFrames); // caméra mobile : le rebond de la caméra s'y mêle
   const cadenceFromFit = fit ? 60 * fps / fit.per : NaN;
   const cadence = Number.isFinite(stepMs) ? (60000 / stepMs + (cadenceFromFit || 60000 / stepMs)) / 2 : cadenceFromFit;
   // contrôle d'échelle : la longueur de jambe peut être faussée si les pieds sont masqués ; le tronc sert de garde-fou
@@ -180,6 +183,20 @@ export function profileMetrics(allFrames, fps, heightM, dir) {
   const contact = med(steps.map((s) => s.contact_ms));
   const m = (k) => med(steps.map((s) => s[k]));
   const rng = (k) => { const a = steps.map((s) => s[k]).filter(Number.isFinite); return a.length ? [Math.min(...a), Math.max(...a)] : null; };
+  if (opts.cameraMobile) {
+    // sans repère fixe : ni vitesse, ni rebond ; temps de contact surestimé par la datation relative (+60 à 100 ms
+    // mesurés le 31/10 contre la méthode caméra fixe) : non rendus. Angles au contact datés ~30 ms trop tôt : indicatifs.
+    return {
+      view: 'profil', dir, cameraMobile: true, frames: [frames[0].f, frames[T - 1].f], nSteps: steps.length, steps, footsOk, visibleShare,
+      scaleWarn, leg_px: legpx, m_per_px: mpp, speed: NaN, pace: NaN, cadence: Number.isFinite(stepMs) ? 60000 / stepMs : NaN,
+      step_len: NaN, contact_ms: NaN, flight_ms: NaN, duty: NaN, vosc_cm: NaN,
+      foot_deg: m('foot_deg'), shank_deg: m('shank_deg'), heel_hip_cm: m('heel_hip_cm'), heel_hip_pct: m('heel_hip_pct'),
+      knee_ic: m('knee_ic'), knee_max: m('knee_max'), thigh_to: m('thigh_to'),
+      trunk: mean(LM.map((_, t) => angUp(sub(sh[t], hip[t])))), elbow: mean(elbow),
+      indicatifs: ['foot_deg', 'shank_deg', 'heel_hip_pct', 'knee_ic', 'knee_max', 'thigh_to'],
+      ranges: Object.fromEntries(['foot_deg', 'shank_deg', 'heel_hip_cm', 'knee_ic', 'knee_max', 'thigh_to'].map((k) => [k, rng(k)])),
+    };
+  }
   return {
     view: 'profil', dir, frames: [frames[0].f, frames[T - 1].f], nSteps: steps.length, steps,
     footsOk, visibleShare, scaleWarn, analysed: [frames[0].f, frames[T - 1].f], total: [allFrames[0].f, allFrames[allFrames.length - 1].f],
@@ -269,4 +286,39 @@ export function frontalMetrics(frames, fps, view) {
     fppa: { gauche: by('gauche', 'fppa'), droite: by('droite', 'fppa') },
     crossings: contacts.filter((c) => c.lateral < 0).length, lateralMed: gap,
   };
+}
+
+// ================= APPUIS SANS REPÈRE FIXE =================
+// Pour une caméra qui suit le coureur : l'image n'est plus un repère fixe, on date les appuis par rapport au bassin
+// (Zeni et al. 2008) : contact = talon le plus en avant du bassin, décollage = pointe le plus en arrière.
+// Rend des indices d'images (dans frames), pour les deux pieds, triés.
+export function appuisRelatifs(frames, fps, dir) {
+  const { raw } = prepare(frames, dir < 0);
+  const T = raw.length; if (T < fps) return [];
+  return zeni(smoothAll(raw, Math.max(5, (Math.round(0.1 * fps) | 1))), T, fps);
+}
+function zeni(LM, T, fps) {
+  const hipx = LM.map((r) => (r[L.hipL][0] + r[L.hipR][0]) / 2);
+  const ecartMin = Math.round(0.25 * fps); // deux contacts du même pied sont espacés d'au moins une foulée
+  const extrema = (a, signe) => {
+    const out = [];
+    for (let t = 1; t < T - 1; t++) {
+      const v = signe * a[t];
+      if (v < signe * a[t - 1] || v < signe * a[t + 1]) continue;
+      let max = true;
+      for (let u = Math.max(0, t - ecartMin); u <= Math.min(T - 1, t + ecartMin); u++) if (signe * a[u] > v) { max = false; break; }
+      if (max && (!out.length || t - out[out.length - 1] >= ecartMin)) out.push(t);
+    }
+    return out;
+  };
+  const res = [];
+  for (const q of [0, 1]) {
+    const talon = LM.map((r, t) => r[L.heL + q][0] - hipx[t]), pointe = LM.map((r, t) => r[L.toL + q][0] - hipx[t]);
+    const ics = extrema(talon, 1), tos = extrema(pointe, -1);
+    for (const ic of ics) {
+      const to = tos.find((x) => x > ic && x - ic < 0.6 * fps);
+      if (to !== undefined) res.push({ ic, to, pied: q });
+    }
+  }
+  return res.sort((a, b) => a.ic - b.ic);
 }

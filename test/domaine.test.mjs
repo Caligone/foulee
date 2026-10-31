@@ -41,7 +41,9 @@ test('statut : repère sans écart-type, seuil indicatif, mesure sans repère', 
   assert.equal(statut('shank_deg', 8), 'ok'); // 3° au-delà de la bande, marge de 4°
   assert.equal(statut('heel_hip_pct', 17), 'ok'); // seuil 15, marge 4
   assert.equal(statut('heel_hip_pct', 20), 'hors');
-  assert.equal(libelle('heel_hip_pct', 'hors', 20), 'Au-delà du seuil indicatif');
+  assert.equal(libelle('heel_hip_pct', 'hors', 20), 'Au-dessus du seuil indicatif');
+  assert.equal(libelle('knee_max', statut('knee_max', 45), 45), 'Au-dessus du seuil indicatif');
+  assert.equal(statut('knee_max', 45), 'ok');
   assert.equal(statut('thigh_to', 2), 'info');
   assert.equal(statut('cadence', NaN), 'na');
 });
@@ -167,4 +169,13 @@ test("À retenir : le constat le plus grave d'abord, rien de rassurant sans prof
   assert.equal(bilan({ passes: [dos] }).retenir.aucunProfil, true);
   assert.equal(dansBande('cadence', 200, { speed: 2.75 }), false);
   assert.ok(!bilan({ passes: [profil({ ...m, shank_deg: 2, heel_hip_pct: 5, trunk: 7 })] }).retenir.moyenne.includes('cadence'));
+});
+
+test('caméra mobile : angles indicatifs sans piste, mesures liées au sol non rendues', () => {
+  const m = { footsOk: true, nSteps: 6, cameraMobile: true, indicatifs: ['shank_deg', 'heel_hip_pct'], shank_deg: 14, heel_hip_pct: 30, heel_hip_cm: 25,
+    trunk: 6, cadence: 170, contact_ms: NaN, vosc_cm: NaN, speed: NaN, steps: [] };
+  const b = bilan({ passes: [profil(m)] });
+  assert.equal(b.exercices.length, 0);
+  assert.ok(b.constats.some((c) => c.role === 'verifier' && /semble/.test(c.t)));
+  assert.equal(b.retenir.principal, null);
 });
