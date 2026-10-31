@@ -55,11 +55,12 @@ Le rapport propose aussi un lecteur image par image avec le squelette, des image
 - Mesure 2D avec une seule caméra : environ 2 à 5° d'erreur sur les angles de profil, davantage au niveau du pied et quand les jambes se croisent.
 - De profil, le côté gauche ou droit de chaque appui n'est pas attribué de façon fiable.
 - Une vue de biais fausse les mesures de face et de dos (Foulée le signale).
-- Les repères publiés sont surtout des moyennes de groupe mesurées en 3D, pas des seuils de blessure. Ce n'est pas un bilan médical.
+- Les repères publiés sont surtout des moyennes de groupe mesurées en 3D, souvent sur tapis : des points de comparaison, pas des normes.
+- Foulée est un outil d'aide à la technique de course, pas un dispositif médical : il ne pose pas de diagnostic et ne sert ni à prévenir ni à traiter une blessure.
 
 ## Références
 
-Malisoux et al. 2023 (OJSM) · Heiderscheit et al. 2011 (MSSE) · Lieberman et al. 2015 (J Exp Biol) · Altman & Davis 2012 (Gait Posture) · Barrett et al. 2023 (IJSPT) · Bramah et al. 2018 (AJSM) · Teng & Powers 2014 (JOSPT) · Souza 2016 (IJSPT) · Meardon & Derrick 2014 (J Biomech) · Arellano & Kram 2014 (J Exp Biol) · Vasconcelos et al. 2022 · Dingenen et al. 2018 (Phys Ther Sport)
+Malisoux et al. 2023 (OJSM) · Heiderscheit et al. 2011 (MSSE) · Lieberman et al. 2015 (J Exp Biol) · Altman & Davis 2012 (Gait Posture) · Barrett et al. 2023 (IJSPT) · Bramah et al. 2018 (AJSM) · Teng & Powers 2014 (JOSPT) · Souza 2016 (Phys Med Rehabil Clin N Am) · Meardon & Derrick 2014 (J Biomech) · Vasconcelos et al. 2022 · Dingenen et al. 2018 (Phys Ther Sport)
 
 ## Structure
 

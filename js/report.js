@@ -15,22 +15,22 @@ export const REFS = {
     ref: 'Attaque talon au-delà de 8°, médio-pied entre −1,6 et 8°, avant-pied en dessous (Altman & Davis 2012). Aucun type d\'attaque n\'est « meilleur » en soi.',
     status: (v, m) => (v > 8 && m.shank_deg > 5) ? 'warn' : 'ok', fmtExtra: (v) => v > 8 ? 'talon' : v < -1.6 ? 'avant-pied' : 'médio-pied' },
   shank_deg: { what: 'Angle du tibia avec la verticale au moment où le pied touche le sol ; positif = le pied arrive devant le genou.', label: 'Inclinaison du tibia au contact', unit: '°', band: [-5, 5], sc: [-10, 25], rel: 'moyenne (± 3 à 5°)',
-    ref: 'Grille clinique : idéalement à moins de 5° de la verticale (Barrett 2023) ; au-delà, le pied se pose devant le genou (Souza 2016).',
+    ref: 'Repère de technique : idéalement à moins de 5° de la verticale (grille d\'analyse vidéo de Barrett 2023) ; au-delà, le pied se pose devant le genou.',
     status: (v) => v > 10 ? 'bad' : v > 5 ? 'warn' : 'ok' },
   heel_hip_pct: { cuts: 'Pas de repère publié, seuils indicatifs de l\'appli : 15 et 25 %', what: 'Distance entre le talon et l\'aplomb du bassin au moment où le pied touche le sol, en part de la longueur de jambe.', label: 'Talon devant le bassin au contact', unit: '% jambe', band: null, sc: [-5, 50], rel: 'moyenne',
     ref: 'Pas de norme publiée. Le freinage augmente avec cette distance et une cadence plus élevée la réduit (Lieberman 2015). Seuils indicatifs de l\'appli : 15 % et 25 % de la longueur de jambe.',
     status: (v) => v > 25 ? 'bad' : v > 15 ? 'warn' : 'ok' },
   knee_ic: { what: 'Pliure du genou au moment où le pied touche le sol (0° = jambe tendue).', label: 'Flexion du genou au contact', unit: '°', band: [5.4, 15], sc: [0, 30], rel: 'moyenne',
-    ref: 'Sains : 10,2 ± 4,8°, blessés : 6,0 ± 4,9° (Bramah 2018, 3D, 3,2 m/s).', status: (v) => v < 5 ? 'warn' : 'ok' },
+    ref: 'Moyenne : 10,2 ± 4,8° chez des coureurs loisirs (Bramah 2018, 3D, 3,2 m/s).', status: (v) => v < 5 ? 'warn' : 'ok' },
   knee_max: { what: 'Pliure la plus forte du genou pendant l\'appui, quand il porte le poids du corps.', label: 'Flexion max du genou en appui', unit: '°', band: [40, 50], sc: [20, 75], rel: 'faible (jambes croisées)',
-    ref: 'Environ 45° ; moins de 40° est associé à un sous-groupe de douleurs fémoro-patellaires (Souza 2016).', status: (v) => v < 38 ? 'warn' : 'ok' },
+    ref: 'Environ 45° en moyenne (Souza 2016).', status: (v) => v < 38 ? 'warn' : 'ok' },
   thigh_to: { what: 'Angle de la cuisse derrière la verticale quand le pied quitte le sol : l\'amplitude de la poussée.', label: 'Cuisse derrière la verticale au décollage', unit: '°', band: null, sc: [-10, 35], rel: 'moyenne',
     ref: 'Pas de norme publiée en 2D ; reflète l\'amplitude de poussée.', status: (v) => v < 8 ? 'warn' : 'ok' },
   trunk: { what: 'Inclinaison du buste ; positif = vers l\'avant.', label: 'Inclinaison du buste', unit: '°', band: [3.7, 10.9], sc: [-15, 20], rel: 'faible à moyenne',
-    ref: 'Spontanée : 7,3 ± 3,6° vers l\'avant (Teng & Powers 2014, 3,4 m/s). Un buste plus droit augmente la contrainte fémoro-patellaire.',
+    ref: 'Spontanée : 7,3 ± 3,6° vers l\'avant (Teng & Powers 2014, 3,4 m/s). Un buste plus incliné reporte une partie du travail du genou vers la hanche.',
     status: (v) => (v < 2 || v > 14) ? 'warn' : 'ok' },
   elbow: { what: 'Ouverture du coude (90° = angle droit).', label: 'Angle des coudes', unit: '°', band: null, sc: [40, 150], rel: 'moyenne',
-    ref: 'Pas de norme. Le balancier des bras réduit le coût énergétique (Arellano & Kram 2014).', status: () => 'ok' },
+    ref: 'Pas de norme publiée pour l\'angle du coude.', status: () => 'ok' },
 };
 export const PROFILE_KEYS = [
   ['Rythme et appuis', ['cadence', 'contact_ms', 'duty', 'vosc_cm']],
@@ -40,7 +40,7 @@ export const PROFILE_KEYS = [
 ];
 export const STATUS = { ok: ['c-ok', 'Dans la norme'], warn: ['c-warn', 'À surveiller'], bad: ['c-bad', 'À travailler'], na: ['c-na', 'Non mesuré'] };
 export const fmt = (x, d = 0) => Number.isFinite(x) ? (+x.toFixed(d) || 0).toFixed(d).replace('.', ',').replace('-', '−') : '—';
-export const pace = (p) => Number.isFinite(p) ? `${Math.floor(p)}:${String(Math.round((p % 1) * 60)).padStart(2, '0')}` : '—';
+export const pace = (p) => { if (!Number.isFinite(p)) return '—'; const s = Math.round(p * 60); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; }; // 5,995 → 6:00, pas 5:60
 const med = (a) => { const b = a.filter(Number.isFinite).sort((x, y) => x - y); return b.length ? (b.length % 2 ? b[b.length >> 1] : (b[b.length / 2 - 1] + b[b.length / 2]) / 2) : NaN; };
 // valeur retenue pour chaque mesure : médiane des passages de profil (un passage raté ne fait pas basculer le verdict)
 export const typical = (prof) => Object.fromEntries([...Object.keys(REFS), 'heel_hip_cm'].map((k) => [k, med(prof.map((p) => p.metrics[k]))]));
@@ -57,7 +57,7 @@ export function frontalStatus(fm) {
 // ---------- Synthèse et recommandations ----------
 export function synthesize(passes) {
   const prof = passes.filter((p) => p.kind === 'profil' && p.metrics && !p.metrics.error && p.metrics.nSteps >= 2);
-  const fr = passes.filter((p) => p.kind !== 'profil' && p.metrics);
+  const fr = passes.filter((p) => p.kind !== 'profil' && p.metrics && !p.metrics.error);
   const slow = prof.slice().sort((a, b) => a.metrics.speed - b.metrics.speed)[0]?.metrics;
   const ty = typical(prof);
   const cards = [], plan = [];
@@ -90,7 +90,7 @@ export function synthesize(passes) {
     if (p.kind === 'dos' && !m.obliqueWarn) {
       const d = Math.max(m.drop.gauche ?? -9, m.drop.droite ?? -9);
       if (d > 5) {
-        cards.push({ st: d > 7 ? 'bad' : 'warn', href: '#frontal', t: 'Chute du bassin en appui', d: `Jusqu'à ${fmt(d, 1)}° (sains : 3,7 ± 1,9°, blessés : 6,4 ± 2,1°, Bramah 2018).` });
+        cards.push({ st: d > 7 ? 'bad' : 'warn', href: '#frontal', t: 'Chute du bassin en appui', d: `Jusqu'à ${fmt(d, 1)}° (moyenne chez des coureurs loisirs : 3,7 ± 1,9°, Bramah 2018).` });
         plan.push({ t: 'Contrôle du bassin', li: ['Renforcement des abducteurs de hanche (gainage latéral, pont sur une jambe, step-down).', 'Courir quelques minutes devant un repère (vitrine, vidéo) en gardant le bassin horizontal.'],
           why: 'La chute controlatérale du bassin est le facteur le plus associé aux blessures courantes dans Bramah et al. (2018).' });
       }
