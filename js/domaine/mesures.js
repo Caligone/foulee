@@ -22,11 +22,11 @@ function prepare(frames, flipX) {
   for (let j = 0; j < 33; j++) for (let c = 0; c < 3; c++) {
     const xs = [], ys = [];
     frames.forEach((f, i) => { if (f.lm) { xs.push(i); ys.push(f.lm[j][c]); } });
-    for (let i = 0; i < n; i++) {
+    for (let i = 0, k = 0; i < n; i++) {
       out[i] ??= Array.from({ length: 33 }, () => [0, 0, 0]);
-      let k = xs.findIndex((x) => x >= i);
+      while (k < xs.length && xs[k] < i) k++; // première image détectée à partir de i (parcours linéaire)
       let val;
-      if (k === -1) val = ys[ys.length - 1]; else if (xs[k] === i || k === 0) val = ys[k];
+      if (k === xs.length) val = ys[ys.length - 1]; else if (xs[k] === i || k === 0) val = ys[k];
       else { const t = (i - xs[k - 1]) / (xs[k] - xs[k - 1]); val = ys[k - 1] * (1 - t) + ys[k] * t; }
       out[i][j][c] = (c === 0 && flipX) ? -val : val;
     }

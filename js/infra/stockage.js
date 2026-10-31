@@ -5,7 +5,7 @@ const DB = 'foulee', VER = 1;
 function open() {
   return new Promise((res, rej) => {
     const r = indexedDB.open(DB, VER);
-    r.onupgradeneeded = () => { r.result.createObjectStore('analyses', { keyPath: 'id' }); };
+    r.onupgradeneeded = () => { if (!r.result.objectStoreNames.contains('analyses')) r.result.createObjectStore('analyses', { keyPath: 'id' }); };
     r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
   });
 }
@@ -14,7 +14,9 @@ async function tx(mode, fn) {
   const db = await open();
   return new Promise((res, rej) => {
     const t = db.transaction('analyses', mode); const req = fn(t.objectStore('analyses'));
-    t.oncomplete = () => { db.close(); res(req?.result); }; t.onerror = () => { db.close(); rej(t.error); };
+    t.oncomplete = () => { db.close(); res(req?.result); };
+    // quota dépassé : la transaction est annulée (abort), pas en erreur
+    t.onerror = t.onabort = () => { db.close(); rej(t.error ?? new Error('Enregistrement impossible (espace disque du navigateur ?)')); };
   });
 }
 const pack = (a) => ({ ...a, passes: a.passes.map(({ frames, ...p }) => {

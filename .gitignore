@@ -2,3 +2,4 @@ vendor/
 *.part
 .DS_Store
 __pycache__/
+test/fixtures/

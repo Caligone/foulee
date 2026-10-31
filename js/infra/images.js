@@ -3,10 +3,10 @@
 // Voie de secours : sauts dans l'élément <video>, quand le navigateur ne décode pas le codec en WebCodecs
 // (Firefox et le HEVC des iPhone). Plus lente et moins exacte : le saut tombe parfois sur l'image voisine.
 
-import { seek, estimateFps } from './engine.js';
+import { seek, estimateFps } from './video.js';
 
 const MP4BOX_CDN = 'https://cdn.jsdelivr.net/npm/mp4box@2.4.1/dist/mp4box.all.mjs';
-const MP4BOX_LOCAL = new URL('../vendor/mp4box/mp4box.all.mjs', import.meta.url).href;
+const MP4BOX_LOCAL = new URL('../../vendor/mp4box/mp4box.all.mjs', import.meta.url).href;
 
 // source = { kind, fps, frames(t0, t1, every) } ; frames() rend des { f, t, src } dans l'ordre,
 // src (VideoFrame ou <video>) n'est valable que jusqu'à l'image suivante.

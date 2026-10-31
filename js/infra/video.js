@@ -4,7 +4,7 @@
 const CDN_VERSION = '0.10.14';
 const CDN_BASE = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${CDN_VERSION}`;
 const MODEL_REMOTE = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task';
-const V = (p) => new URL('../vendor/' + p, import.meta.url).href;
+const V = (p) => new URL('../../vendor/' + p, import.meta.url).href;
 const MODEL_LOCAL = V('models/pose_landmarker_heavy.task');
 
 async function exists(url) {
