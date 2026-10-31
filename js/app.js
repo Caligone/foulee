@@ -13,9 +13,14 @@ function show(view) {
   for (const v of ['new', 'run', 'report', 'history']) $(`#view-${v}`).hidden = v !== view;
   document.querySelectorAll('.tab').forEach((t) => t.toggleAttribute('aria-current', t.dataset.view === view || (view === 'report' && t.dataset.view === 'history' && false)));
   if (view === 'history') renderHistory();
+  // seul l'historique a son adresse (#historique) : les autres vues dépendent d'une vidéo ou d'une analyse ouverte
+  const url = view === 'history' ? '#historique' : location.pathname + location.search;
+  if ((location.hash === '#historique') !== (view === 'history')) history.pushState(null, '', url);
   window.scrollTo(0, 0);
 }
 document.querySelectorAll('.tab').forEach((t) => t.addEventListener('click', () => show(t.dataset.view)));
+const route = () => { if (location.hash === '#historique') show('history'); else if (!$('#view-history').hidden) show('new'); };
+addEventListener('popstate', route); route();
 
 // ---------- formulaire ----------
 const drop = $('#drop');
@@ -301,7 +306,7 @@ async function renderHistory() {
   const opts = (sel) => list.map((x, i) => `<option value="${i}"${i === sel ? ' selected' : ''}>${dateOf(x)}</option>`).join('');
   const cmp = list.length > 1 ? `<section class="card compare"><h2>Comparer deux analyses</h2>
     <div class="row"><label>Avant<select id="cmpb">${opts(1)}</select></label><label>Après<select id="cmpa">${opts(0)}</select></label></div><div id="cmpout"></div></section>` : '';
-  H.innerHTML = `${chartHTML(list)}${cmp}<div class="tablewrap"><table><thead><tr><th>Date</th><th>Libellé</th><th>Vues</th><th>Allure</th><th>Cadence</th><th>Contact ms</th><th>Tibia °</th><th>Talon/bassin %</th><th>Buste °</th></tr></thead><tbody>${list.map(row).join('')}</tbody></table></div>
+  H.innerHTML = `${cmp}<div class="tablewrap"><table><thead><tr><th>Date</th><th>Libellé</th><th>Vues</th><th>Allure</th><th>Cadence</th><th>Contact ms</th><th>Tibia °</th><th>Talon/bassin %</th><th>Buste °</th></tr></thead><tbody>${list.map(row).join('')}</tbody></table></div>
     <p class="muted">Vues : P = profil, F = face, D = dos. Clique sur une ligne pour rouvrir le rapport.</p>
     <div class="actions"><button class="btn ghost" id="delall">Effacer tout l'historique</button></div>`;
   if (cmp) { const upd = () => { $('#cmpout').innerHTML = compareHTML(list[$('#cmpa').value], list[$('#cmpb').value]); }; $('#cmpa').onchange = $('#cmpb').onchange = upd; upd(); }
@@ -311,24 +316,6 @@ async function renderHistory() {
     const open = async () => { const a = await getAnalysis(tr.dataset.id); if (a) renderReport(a); };
     tr.addEventListener('click', open); tr.addEventListener('keydown', (e) => { if (e.key === 'Enter') open(); });
   });
-}
-function chartHTML(list) {
-  // évolution du tibia au contact et de la cadence (passage le plus lent de chaque analyse)
-  const pts = list.map((x) => {
-    const ps = x.summary.filter((p) => p.kind === 'profil' && p.metrics?.nSteps >= 2).map((p) => p.metrics).sort((a, b) => a.speed - b.speed);
-    return ps.length ? { t: x.videoDate || x.date, sh: ps[0].shank_deg, cad: ps[0].cadence } : null;
-  }).filter(Boolean).sort((a, b) => a.t - b.t);
-  if (pts.length < 2) return '';
-  const W = 640, Hh = 180, pad = 34, t0 = pts[0].t, t1 = pts[pts.length - 1].t || t0 + 1;
-  const X = (t) => pad + (W - 2 * pad) * (t - t0) / Math.max(1, t1 - t0);
-  const series = (k, lo, hi, col) => {
-    const Y = (v) => Hh - pad + (-(Hh - 2 * pad)) * (v - lo) / (hi - lo);
-    return `<polyline fill="none" stroke="${col}" stroke-width="2.5" points="${pts.map((p) => `${X(p.t)},${Y(p[k])}`).join(' ')}"/>` + pts.map((p) => `<circle cx="${X(p.t)}" cy="${Y(p[k])}" r="4" fill="${col}"/>`).join('');
-  };
-  return `<figure class="card"><svg class="chart" viewBox="0 0 ${W} ${Hh}" role="img" aria-label="Évolution du tibia au contact et de la cadence">
-    <line x1="${pad}" x2="${W - pad}" y1="${Hh - pad}" y2="${Hh - pad}" stroke="var(--line)"/>
-    ${series('sh', -5, 25, 'var(--warn)')}${series('cad', 140, 195, 'var(--accent)')}
-    <text x="${pad}" y="16" fill="var(--muted)" font-size="12" font-family="var(--body)">Tibia au contact (−5 à 25°, orange) · Cadence (140 à 195 pas/min, bleu), passage le plus lent</text></svg></figure>`;
 }
 
 if (params.get('autotest')) {

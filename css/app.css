@@ -141,7 +141,6 @@ tr.clickable{cursor:pointer} tr.clickable:hover td{background:var(--bg)}
 .cmpsum{font-size:1.05rem;margin:0}
 .note{border-left:3px solid var(--warn);padding:10px 14px;background:var(--surface);font-size:.93rem}
 .empty{color:var(--muted);padding:20px;border:1px dashed var(--line);border-radius:8px}
-.chart{width:100%;height:auto}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 /* impression : le rapport seul, sans navigation ni lecteur */
 @media print{
