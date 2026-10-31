@@ -52,6 +52,8 @@ async function webcodecsSource(file) {
   const samples = mp4.getTrackSamplesInfo(tr.id).map((s) => ({ offset: s.offset, size: s.size, sync: s.is_sync, t: s.cts / s.timescale, dur: s.duration / s.timescale }));
   const byTime = samples.map((s) => s.t).sort((a, b) => a - b);
   const rank = new Map(byTime.map((t, i) => [Math.round(t * 1e6), i]));
+  // Safari iOS annonce le HEVC pris en charge puis refuse la configuration : on essaie pour de bon
+  if (!(await decodeUneImage(file, config, samples.find((s) => s.sync)))) return null;
   const fps = samples.length / (tr.duration / tr.timescale);
   // cadence variable (Android en basse lumière, enregistreurs d'écran) : les mesures supposent un pas de temps constant
   const durees = samples.map((x) => x.dur).filter((x) => x > 0), dm = durees.reduce((a, b) => a + b, 0) / durees.length;
@@ -119,6 +121,19 @@ async function webcodecsSource(file) {
     }
   }
   return { kind: 'webcodecs', fps, vfr, frames };
+}
+
+async function decodeUneImage(file, config, s) {
+  if (!s) return false;
+  const data = new Uint8Array(await file.slice(s.offset, s.offset + s.size).arrayBuffer());
+  let ok = false;
+  const dec = new VideoDecoder({ output: (fr) => { ok = true; fr.close(); }, error: () => {} });
+  try {
+    dec.configure(config);
+    dec.decode(new EncodedVideoChunk({ type: 'key', timestamp: 0, data }));
+    await dec.flush();
+  } catch { ok = false; } finally { if (dec.state !== 'closed') dec.close(); }
+  return ok;
 }
 
 async function seekSource(v) {
