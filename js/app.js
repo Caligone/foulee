@@ -157,11 +157,12 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<
 
 function frontalHTML(p, a) {
   const m = p.metrics; if (!m.contacts) return '';
-  if (!m.contacts.length) return `<h3>${KIND[p.kind]} · ${fmt(p.t0, 1)}–${fmt(p.t1, 1)} s</h3><p class="empty">Aucun appui repéré sur ce passage : pieds masqués ou coureur trop loin.</p>`;
+  const hid = m.masked ? `${m.masked} appui${m.masked > 1 ? 's' : ''} ignoré${m.masked > 1 ? 's' : ''} : jambes mal visibles (obstacle, sortie du cadre).` : '';
+  if (!m.contacts.length) return `<h3>${KIND[p.kind]} · ${fmt(p.t0, 1)}–${fmt(p.t1, 1)} s</h3><p class="empty">${hid || 'Aucun appui repéré sur ce passage : pieds masqués ou coureur trop loin.'}</p>`;
   const back = p.kind === 'dos';
   const warn = m.obliqueWarn ? '<p class="note">Le coureur se déplace de biais par rapport à la caméra : largeur d\'appui, bassin et genou sont faussés par la perspective. Mesures indicatives seulement.</p>' : '';
   const rows = m.contacts.map((c) => `<tr><td>${c.side}</td><td class="num">${fmt(c.f0)}–${fmt(c.f1)}</td><td class="num">${fmt(c.lateral)} %</td><td>${c.lateral < 0 ? 'croise' : 'de son côté'}</td>${back ? `<td class="num">${fmt(c.drop, 1)}°</td><td class="num">${fmt(c.fppa)}°</td>` : ''}</tr>`).join('');
-  return `<h3>${KIND[p.kind]} · ${fmt(p.t0, 1)}–${fmt(p.t1, 1)} s</h3>${warn}
+  return `<h3>${KIND[p.kind]} · ${fmt(p.t0, 1)}–${fmt(p.t1, 1)} s</h3>${warn}${hid ? `<p class="note">${hid}</p>` : ''}
   <div class="tablewrap"><table><thead><tr><th>Appui</th><th>Images</th><th>Pied / ligne médiane</th><th></th>${back ? '<th>Chute du bassin</th><th>Genou (plan frontal)</th>' : ''}</tr></thead><tbody>${rows}</tbody></table></div>
   <p class="ref">Pied / ligne médiane : position du talon par rapport au milieu du bassin, en % de la largeur du bassin (négatif = le pied croise la ligne). ${back ? `Chute du bassin : sains 3,7 ± 1,9°, blessés 6,4 ± 2,1° (Bramah 2018). Inclinaison de caméra estimée et retirée : ${fmt(m.roll, 1)}°. Genou : + = vers l'intérieur ; asymptomatiques 4,0 ± 3,3° (Vasconcelos 2022), pas de seuil.` : 'De face, la chute du bassin et le genou ne sont pas chiffrés : filme de dos pour les obtenir.'}</p>`;
 }

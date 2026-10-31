@@ -196,8 +196,15 @@ export function profileMetrics(allFrames, fps, heightM, dir) {
 
 // ================= FACE / DOS =================
 export function frontalMetrics(frames, fps, view) {
-  const { raw } = prepare(frames, false);
+  const { raw, ok } = prepare(frames, false);
   const T = raw.length; if (T < 0.6 * fps) return null;
+  // jambes visibles sur toute la durée de l'appui (genou, cheville, talon, pointe des deux côtés) ;
+  // une jambe masquée (voiture, poteau) donne des positions inventées par le modèle
+  const legsSeen = (t, u) => {
+    for (let i = t; i <= u; i++) if (!ok[i]) return false;
+    return [0, 1].every((q) => mean(raw.slice(t, u + 1).flatMap((r) => [L.knL, L.anL, L.heL, L.toL].map((j) => r[j + q][2]))) >= 0.5);
+  };
+  let masked = 0;
   const LM = smoothAll(raw, Math.max(5, (Math.round(0.1 * fps) | 1)));
   // côté anatomique par la géométrie : de dos, la hanche gauche est à gauche de l'image ; de face, à droite.
   const sideOf = (t) => {
@@ -221,7 +228,8 @@ export function frontalMetrics(frames, fps, view) {
     for (let t = 1; t < T - 1; t++) {
       if (!still[t] || still[t - 1]) continue;
       let u = t; while (u + 1 < T && still[u + 1]) u++;
-      if (u - t + 1 >= Math.max(4, Math.round(0.08 * fps)) && u < T - 1) {
+      if (u - t + 1 >= Math.max(4, Math.round(0.08 * fps)) && u < T - 1 && !legsSeen(t, u)) masked++;
+      else if (u - t + 1 >= Math.max(4, Math.round(0.08 * fps)) && u < T - 1) {
         const mt = Math.round((t + u) / 2), r = LM[mt], sw = sideOf(mt);
         const anat = q ^ sw; // 0 = gauche, 1 = droite
         const hm = mid(P(LM, mt, L.hipL), P(LM, mt, L.hipR));
@@ -248,7 +256,7 @@ export function frontalMetrics(frames, fps, view) {
   const hx = LM.map((r) => (r[L.hipL][0] + r[L.hipR][0]) / 2);
   const oblique = Math.abs(hx[T - 1] - hx[0]) / hipw / (T / fps);
   return {
-    view, frames: [frames[0].f, frames[T - 1].f], contacts, roll, hipw_px: hipw, oblique,
+    view, frames: [frames[0].f, frames[T - 1].f], contacts, masked, roll, hipw_px: hipw, oblique,
     obliqueWarn: oblique > 1.2,
     drop: { gauche: by('gauche', 'drop'), droite: by('droite', 'drop') },
     lateral: { gauche: by('gauche', 'lateral'), droite: by('droite', 'lateral') },
