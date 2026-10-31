@@ -4,7 +4,7 @@
   "type": "module",
   "description": "Analyse de foulée locale. Pas d'étape de build : ces scripts servent seulement au développement.",
   "scripts": {
-    "test": "node --test test/",
+    "test": "node --test 'test/*.test.mjs'",
     "types": "tsc -p jsconfig.json",
     "check": "npm run types && npm test"
   },
