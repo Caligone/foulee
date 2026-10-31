@@ -4,3 +4,4 @@ vendor/
 __pycache__/
 test/fixtures/
 node_modules/
+*.png
