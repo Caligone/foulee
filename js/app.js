@@ -158,6 +158,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<
 function frontalHTML(p, a) {
   const m = p.metrics; if (!m.contacts) return '';
   const hid = m.masked ? `${m.masked} appui${m.masked > 1 ? 's' : ''} ignoré${m.masked > 1 ? 's' : ''} : jambes mal visibles (obstacle, sortie du cadre).` : '';
+  if (m.unreliable) return `<h3>${KIND[p.kind]} · ${fmt(p.t0, 1)}–${fmt(p.t1, 1)} s</h3><p class="empty">Passage non chiffré : le modèle confond les jambes (${m.confused} appuis détectés en même temps que l'autre pied, ce qui est impossible en course). Filme téléphone à hauteur de hanche et arrête-toi à 10–15 m.</p>`;
   if (!m.contacts.length) return `<h3>${KIND[p.kind]} · ${fmt(p.t0, 1)}–${fmt(p.t1, 1)} s</h3><p class="empty">${hid || 'Aucun appui repéré sur ce passage : pieds masqués ou coureur trop loin.'}</p>`;
   const back = p.kind === 'dos';
   const warn = m.obliqueWarn ? '<p class="note">Le coureur se déplace de biais par rapport à la caméra : largeur d\'appui, bassin et genou sont faussés par la perspective. Mesures indicatives seulement.</p>' : '';

@@ -250,13 +250,19 @@ export function frontalMetrics(frames, fps, view) {
     }
   }
   contacts.sort((a, b) => a.f0 - b.f0);
+  // contrôle qualité : en course, jamais deux pieds au sol en même temps. Des appuis qui se chevauchent viennent
+  // d'une confusion des jambes par le modèle (fréquent de dos). Au-delà d'un tiers (seuil de l'appli), passage non fiable.
+  const overlap = (a, b) => Math.min(a.f1, b.f1) - Math.max(a.f0, b.f0) > 0.5 * Math.min(a.f1 - a.f0, b.f1 - b.f0);
+  const confused = contacts.filter((a) => contacts.some((b) => b !== a && overlap(a, b))).length;
+  const unreliable = contacts.length >= 3 && confused > contacts.length / 3;
+  if (unreliable) contacts.length = 0;
   const by = (s, k) => med(contacts.filter((c) => c.side === s).map((c) => c[k]));
   const gap = med(contacts.map((c) => c.lateral));
   // dérive latérale (vue de biais) : déplacement horizontal du bassin rapporté à la croissance de taille
   const hx = LM.map((r) => (r[L.hipL][0] + r[L.hipR][0]) / 2);
   const oblique = Math.abs(hx[T - 1] - hx[0]) / hipw / (T / fps);
   return {
-    view, frames: [frames[0].f, frames[T - 1].f], contacts, masked, roll, hipw_px: hipw, oblique,
+    view, frames: [frames[0].f, frames[T - 1].f], contacts, masked, confused, unreliable, roll, hipw_px: hipw, oblique,
     obliqueWarn: oblique > 1.2,
     drop: { gauche: by('gauche', 'drop'), droite: by('droite', 'drop') },
     lateral: { gauche: by('gauche', 'lateral'), droite: by('droite', 'lateral') },

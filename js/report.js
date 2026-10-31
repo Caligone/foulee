@@ -1,35 +1,35 @@
 // Rapport : repères publiés, statut de chaque mesure, recommandations, jauges, images clés et lecteur.
 
 export const REFS = {
-  cadence: { label: 'Cadence', unit: 'pas/min', band: [155, 173], sc: [140, 195], rel: 'haute',
+  cadence: { what: 'Nombre de pas par minute, les deux pieds comptés.', label: 'Cadence', unit: 'pas/min', band: [155, 173], sc: [140, 195], rel: 'haute',
     ref: 'Préférée : 164 ± 9 pas/min chez ~900 coureurs loisirs (Malisoux 2023).',
     status: (v) => v < 150 ? 'warn' : 'ok' },
-  contact_ms: { label: 'Temps de contact', unit: 'ms', band: [254, 324], sc: [180, 400], rel: 'haute (± 1 image)',
+  contact_ms: { what: 'Durée pendant laquelle le pied reste au sol à chaque pas.', label: 'Temps de contact', unit: 'ms', band: [254, 324], sc: [180, 400], rel: 'haute (± 1 image)',
     ref: '289 ± 35 ms à allure préférée, environ −17 ms par km/h de plus (Malisoux 2023).',
     status: (v) => v > 324 ? 'warn' : 'ok' },
-  duty: { label: 'Part du temps au sol', unit: '%', band: [35, 43], sc: [25, 55], rel: 'haute',
+  duty: { what: 'Part de chaque foulée passée au sol plutôt qu\'en l\'air.', label: 'Part du temps au sol', unit: '%', band: [35, 43], sc: [25, 55], rel: 'haute',
     ref: 'Duty factor : 39 ± 4 % (Malisoux 2023).', status: (v) => v > 43 ? 'warn' : 'ok' },
-  vosc_cm: { label: 'Oscillation verticale (bassin)', unit: 'cm', band: [6.7, 9.3], sc: [3, 15], rel: 'moyenne',
+  vosc_cm: { what: 'De combien le bassin monte et descend à chaque pas.', label: 'Oscillation verticale (bassin)', unit: 'cm', band: [6.7, 9.3], sc: [3, 15], rel: 'moyenne',
     ref: '8,0 ± 1,3 cm chez les hommes, 7,7 ± 1,2 cm au global (Malisoux 2023).', status: (v) => v > 10 ? 'warn' : 'ok' },
-  foot_deg: { label: 'Angle du pied au contact', unit: '°', band: [-1.6, 8], sc: [-15, 40], rel: 'moyenne (± 5°)',
+  foot_deg: { what: 'Angle de la semelle avec le sol au moment où le pied le touche ; positif = talon en premier.', label: 'Angle du pied au contact', unit: '°', band: [-1.6, 8], sc: [-15, 40], rel: 'moyenne (± 5°)',
     ref: 'Attaque talon au-delà de 8°, médio-pied entre −1,6 et 8°, avant-pied en dessous (Altman & Davis 2012). Aucun type d\'attaque n\'est « meilleur » en soi.',
     status: (v, m) => (v > 8 && m.shank_deg > 5) ? 'warn' : 'ok', fmtExtra: (v) => v > 8 ? 'talon' : v < -1.6 ? 'avant-pied' : 'médio-pied' },
-  shank_deg: { label: 'Inclinaison du tibia au contact', unit: '°', band: [-5, 5], sc: [-10, 25], rel: 'moyenne (± 3 à 5°)',
+  shank_deg: { what: 'Angle du tibia avec la verticale au moment où le pied touche le sol ; positif = le pied arrive devant le genou.', label: 'Inclinaison du tibia au contact', unit: '°', band: [-5, 5], sc: [-10, 25], rel: 'moyenne (± 3 à 5°)',
     ref: 'Grille clinique : idéalement à moins de 5° de la verticale (Barrett 2023) ; au-delà, le pied se pose devant le genou (Souza 2016).',
     status: (v) => v > 10 ? 'bad' : v > 5 ? 'warn' : 'ok' },
-  heel_hip_pct: { label: 'Talon devant le bassin au contact', unit: '% jambe', band: null, sc: [-5, 50], rel: 'moyenne',
+  heel_hip_pct: { cuts: 'Pas de repère publié, seuils indicatifs de l\'appli : 15 et 25 %', what: 'Distance entre le talon et l\'aplomb du bassin au moment où le pied touche le sol, en part de la longueur de jambe.', label: 'Talon devant le bassin au contact', unit: '% jambe', band: null, sc: [-5, 50], rel: 'moyenne',
     ref: 'Pas de norme publiée. Le freinage augmente avec cette distance et une cadence plus élevée la réduit (Lieberman 2015). Seuils indicatifs de l\'appli : 15 % et 25 % de la longueur de jambe.',
     status: (v) => v > 25 ? 'bad' : v > 15 ? 'warn' : 'ok' },
-  knee_ic: { label: 'Flexion du genou au contact', unit: '°', band: [5.4, 15], sc: [0, 30], rel: 'moyenne',
+  knee_ic: { what: 'Pliure du genou au moment où le pied touche le sol (0° = jambe tendue).', label: 'Flexion du genou au contact', unit: '°', band: [5.4, 15], sc: [0, 30], rel: 'moyenne',
     ref: 'Sains : 10,2 ± 4,8°, blessés : 6,0 ± 4,9° (Bramah 2018, 3D, 3,2 m/s).', status: (v) => v < 5 ? 'warn' : 'ok' },
-  knee_max: { label: 'Flexion max du genou en appui', unit: '°', band: [40, 50], sc: [20, 75], rel: 'faible (jambes croisées)',
+  knee_max: { what: 'Pliure la plus forte du genou pendant l\'appui, quand il porte le poids du corps.', label: 'Flexion max du genou en appui', unit: '°', band: [40, 50], sc: [20, 75], rel: 'faible (jambes croisées)',
     ref: 'Environ 45° ; moins de 40° est associé à un sous-groupe de douleurs fémoro-patellaires (Souza 2016).', status: (v) => v < 38 ? 'warn' : 'ok' },
-  thigh_to: { label: 'Cuisse derrière la verticale au décollage', unit: '°', band: null, sc: [-10, 35], rel: 'moyenne',
+  thigh_to: { what: 'Angle de la cuisse derrière la verticale quand le pied quitte le sol : l\'amplitude de la poussée.', label: 'Cuisse derrière la verticale au décollage', unit: '°', band: null, sc: [-10, 35], rel: 'moyenne',
     ref: 'Pas de norme publiée en 2D ; reflète l\'amplitude de poussée.', status: (v) => v < 8 ? 'warn' : 'ok' },
-  trunk: { label: 'Inclinaison du buste', unit: '°', band: [3.7, 10.9], sc: [-15, 20], rel: 'faible à moyenne',
+  trunk: { what: 'Inclinaison du buste ; positif = vers l\'avant.', label: 'Inclinaison du buste', unit: '°', band: [3.7, 10.9], sc: [-15, 20], rel: 'faible à moyenne',
     ref: 'Spontanée : 7,3 ± 3,6° vers l\'avant (Teng & Powers 2014, 3,4 m/s). Un buste plus droit augmente la contrainte fémoro-patellaire.',
     status: (v) => (v < 2 || v > 14) ? 'warn' : 'ok' },
-  elbow: { label: 'Angle des coudes', unit: '°', band: null, sc: [40, 150], rel: 'moyenne',
+  elbow: { what: 'Ouverture du coude (90° = angle droit).', label: 'Angle des coudes', unit: '°', band: null, sc: [40, 150], rel: 'moyenne',
     ref: 'Pas de norme. Le balancier des bras réduit le coût énergétique (Arellano & Kram 2014).', status: () => 'ok' },
 };
 export const PROFILE_KEYS = [
@@ -39,8 +39,11 @@ export const PROFILE_KEYS = [
   ['Posture', ['trunk', 'elbow']],
 ];
 export const STATUS = { ok: ['c-ok', 'Dans la norme'], warn: ['c-warn', 'À surveiller'], bad: ['c-bad', 'À travailler'], na: ['c-na', 'Non mesuré'] };
-export const fmt = (x, d = 0) => Number.isFinite(x) ? x.toFixed(d).replace('.', ',').replace('-', '−') : '—';
+export const fmt = (x, d = 0) => Number.isFinite(x) ? (+x.toFixed(d) || 0).toFixed(d).replace('.', ',').replace('-', '−') : '—';
 export const pace = (p) => Number.isFinite(p) ? `${Math.floor(p)}:${String(Math.round((p % 1) * 60)).padStart(2, '0')}` : '—';
+const med = (a) => { const b = a.filter(Number.isFinite).sort((x, y) => x - y); return b.length ? (b.length % 2 ? b[b.length >> 1] : (b[b.length / 2 - 1] + b[b.length / 2]) / 2) : NaN; };
+// valeur retenue pour chaque mesure : médiane des passages de profil (un passage raté ne fait pas basculer le verdict)
+export const typical = (prof) => Object.fromEntries([...Object.keys(REFS), 'heel_hip_cm'].map((k) => [k, med(prof.map((p) => p.metrics[k]))]));
 const DEC = { vosc_cm: 1, cadence: 0, contact_ms: 0, duty: 0 };
 
 export function frontalStatus(fm) {
@@ -56,26 +59,26 @@ export function synthesize(passes) {
   const prof = passes.filter((p) => p.kind === 'profil' && p.metrics && !p.metrics.error && p.metrics.nSteps >= 2);
   const fr = passes.filter((p) => p.kind !== 'profil' && p.metrics);
   const slow = prof.slice().sort((a, b) => a.metrics.speed - b.metrics.speed)[0]?.metrics;
-  const worst = (k) => prof.reduce((m, p) => Math.max(m, p.metrics[k] ?? -1e9), -1e9);
+  const ty = typical(prof);
   const cards = [], plan = [];
   if (prof.length) {
-    const sh = worst('shank_deg'), hh = worst('heel_hip_pct');
+    const sh = ty.shank_deg, hh = ty.heel_hip_pct;
     if (sh > 5 || hh > 15) {
       cards.push({ st: sh > 10 || hh > 25 ? 'bad' : 'warn', href: '#m-shank_deg', t: 'Le pied se pose devant le bassin',
-        d: `Tibia incliné jusqu'à ${fmt(sh)}° vers l'avant au contact et talon jusqu'à ${fmt(hh)} % de la longueur de jambe devant le bassin. C'est le signe d'une foulée qui freine (overstriding).` });
+        d: `Au contact, le tibia penche de ${fmt(sh)}° vers l'avant et le talon arrive ${fmt(ty.heel_hip_cm)} cm devant le bassin (${fmt(hh)} % de la longueur de jambe). C'est le signe d'une foulée qui freine (overstriding).` });
       const cad = slow?.cadence ?? prof[0].metrics.cadence;
       plan.push({ t: `Monter la cadence de 5 à 7 % en footing (≈ ${fmt(cad * 1.05)} à ${fmt(cad * 1.07)} pas/min)`,
         li: ['Métronome de la montre ou musique à ce tempo, par blocs de 2 min, puis sur toute la sortie.', 'Même allure : le pas raccourcit de lui-même et le pied revient sous le bassin.'],
         why: '+5 % de cadence réduit d\'environ 20 % l\'énergie absorbée par le genou (Heiderscheit 2011) et rapproche le pied du bassin au contact (Lieberman 2015).' });
     }
-    const tr = Math.min(...prof.map((p) => p.metrics.trunk));
+    const tr = ty.trunk;
     if (tr < 2) {
-      cards.push({ st: 'warn', href: '#m-trunk', t: 'Buste très droit', d: `Inclinaison mesurée jusqu'à ${fmt(tr)}° (l'inclinaison habituelle est d'environ 7° vers l'avant). Combiné au pied posé devant, cela favorise le freinage.` });
+      cards.push({ st: 'warn', href: '#m-trunk', t: 'Buste très droit', d: `Inclinaison mesurée : ${fmt(tr)}° (l'inclinaison habituelle est d'environ 7° vers l'avant). Combiné au pied posé devant, cela favorise le freinage.` });
       plan.push({ t: 'Courir « grand et légèrement penché »', li: ['Légère inclinaison vers l\'avant venue des chevilles, pas de la taille.', 'Surtout aux allures lentes ; viser 5 à 10° sur la prochaine vidéo.'],
         why: 'Un buste plus incliné diminue la contrainte fémoro-patellaire ; un buste plus droit l\'augmente (Teng & Powers 2014). Contrepartie : plus de travail des extenseurs de hanche.' });
     }
-    const vo = Math.max(...prof.map((p) => p.metrics.vosc_cm));
-    if (vo > 10) cards.push({ st: 'warn', href: '#m-vosc_cm', t: 'Rebond vertical élevé', d: `Oscillation du bassin jusqu'à ${fmt(vo, 1)} cm (repère : 8 ± 1,3 cm).` });
+    const vo = ty.vosc_cm;
+    if (vo > 10) cards.push({ st: 'warn', href: '#m-vosc_cm', t: 'Rebond vertical élevé', d: `Oscillation du bassin de ${fmt(vo, 1)} cm (repère : 8 ± 1,3 cm).` });
   }
   for (const p of fr) {
     const m = p.metrics;
@@ -96,10 +99,9 @@ export function synthesize(passes) {
   if (!cards.some((c) => c.st !== 'ok') && prof.length) cards.push({ st: 'ok', t: 'Rien de marquant', d: 'Aucune mesure ne sort nettement des repères publiés.' });
   if (prof.length) {
     const good = [];
-    const m = prof[0].metrics;
-    if (m.vosc_cm <= 10) good.push('rebond vertical');
-    if (prof.every((p) => p.metrics.knee_ic >= 5)) good.push('flexion du genou au contact');
-    if (prof.every((p) => p.metrics.cadence >= 155)) good.push('cadence');
+    if (ty.vosc_cm <= 10) good.push('rebond vertical');
+    if (ty.knee_ic >= 5) good.push('flexion du genou au contact');
+    if (ty.cadence >= 155) good.push('cadence');
     if (good.length) cards.push({ st: 'ok', t: 'Points forts', d: `Dans les repères : ${good.join(', ')}.` });
   }
   if (!fr.some((p) => p.kind === 'dos')) cards.push({ st: 'na', t: 'Vue de dos manquante', d: 'La chute du bassin et l\'alignement du genou se mesurent de dos, caméra dans l\'axe de course.' });
@@ -109,29 +111,31 @@ export function synthesize(passes) {
 // ---------- Jauges ----------
 const pos = (x, sc) => Math.max(0, Math.min(100, (x - sc[0]) / (sc[1] - sc[0]) * 100));
 export function gaugesHTML(prof) {
-  const col = ['var(--accent)', 'var(--left)', 'var(--right)', 'var(--fg)'];
-  let h = `<div class="keyrow">${prof.map((p, i) => `<span><span class="mk" style="background:${col[i % 4]}"></span>Passage ${i + 1} · ${pace(p.metrics.pace)}/km</span>`).join('')}<span><span class="bandkey"></span>repère publié</span></div>`;
+  const ty = typical(prof), n = prof.length;
+  let h = '';
   for (const [g, keys] of PROFILE_KEYS) {
     h += `<h3 class="grp">${g}</h3>`;
     for (const k of keys) {
-      const R = REFS[k]; const vals = prof.map((p) => p.metrics[k]);
-      const sts = prof.map((p) => R.status(p.metrics[k], p.metrics));
-      const st = sts.includes('bad') ? 'bad' : sts.includes('warn') ? 'warn' : 'ok';
-      const d = DEC[k] ?? 0;
-      const extra = R.fmtExtra ? ` (${prof.map((p) => R.fmtExtra(p.metrics[k])).join(' · ')})` : '';
+      const R = REFS[k], d = DEC[k] ?? 0, v = ty[k], u = R.unit;
+      const st = Number.isFinite(v) ? R.status(v, ty) : 'na';
+      const vals = prof.map((p) => p.metrics[k]).filter(Number.isFinite);
+      const spread = n > 1 && vals.length ? `médiane de ${n} passages, de ${fmt(Math.min(...vals), d)} à ${fmt(Math.max(...vals), d)}` : '1 passage';
+      const extra = R.fmtExtra && Number.isFinite(v) ? ` <span>${R.fmtExtra(v)}</span>` : k === 'heel_hip_pct' ? ` <span>soit ${fmt(ty.heel_hip_cm)} cm</span>` : '';
+      const band = R.band ? `Repère publié : ${fmt(R.band[0], d)} à ${fmt(R.band[1], d)} ${u}` : R.cuts ?? 'Pas de repère publié';
       const rk = { heel_hip_pct: 'heel_hip_cm' }[k] ?? k;
-      const ranges = prof.map((p) => p.metrics.ranges?.[rk]).filter(Boolean);
-      const cm = k === 'heel_hip_pct' ? ` <span>soit ${prof.map((p) => fmt(p.metrics.heel_hip_cm)).join(' · ')} cm</span>` : '';
-      // une ligne par mesure ; le détail (repère, fiabilité, appuis) ne s'ouvre d'office que pour ce qui sort de la norme
+      const rows = prof.map((p, i) => { const r = p.metrics.ranges?.[rk]; return `<tr><td>Passage ${i + 1}</td><td class="num">${pace(p.metrics.pace)}/km</td><td class="num">${fmt(p.metrics[k], d)} ${u}</td>${k !== 'heel_hip_pct' ? `<td class="num muted">${r ? `${fmt(r[0])} à ${fmt(r[1])}` : ''}</td>` : ''}</tr>`; }).join('');
+      // une ligne par mesure ; le détail (passages, source, fiabilité) ne s'ouvre d'office que pour ce qui sort de la norme
       h += `<details class="metric" id="m-${k}"${st !== 'ok' ? ' open' : ''}><summary>
         <div class="name"><h4>${R.label} <span class="chip ${STATUS[st][0]}">${STATUS[st][1]}</span></h4>
-        <div class="vals">${vals.map((v) => fmt(v, d)).join(' · ')} ${R.unit}${extra}${cm}</div></div>
-        <div class="gauge" role="img" aria-label="${R.label}"><div class="track"></div>
+        <div class="vals"><b>${fmt(v, d)} ${u}</b>${extra}</div><p class="what">${R.what}</p></div>
+        <div><div class="gauge" role="img" aria-label="${R.label} : ${fmt(v, d)} ${u}. ${band}"><div class="track"></div>
         ${R.band ? `<div class="bandz" style="left:${pos(R.band[0], R.sc)}%;width:${pos(R.band[1], R.sc) - pos(R.band[0], R.sc)}%"></div>` : ''}
-        ${vals.map((v, i) => Number.isFinite(v) ? `<div class="dot" style="left:${pos(v, R.sc)}%;background:${col[i % 4]}"></div>` : '').join('')}
-        <div class="ticks"><span>${fmt(R.sc[0])}</span><span>${fmt(R.sc[1])} ${R.unit}</span></div></div></summary>
-        <div class="more"><p class="ref">${R.ref}</p>
-        <p class="rel">Fiabilité ${R.rel}${ranges.length && k !== 'heel_hip_pct' ? ` · appuis : ${ranges.map((r) => `${fmt(r[0])}–${fmt(r[1])}`).join(' · ')}` : ''}</p></div></details>`;
+        ${n > 1 ? vals.map((x) => `<div class="pt" style="left:${pos(x, R.sc)}%"></div>`).join('') : ''}
+        ${Number.isFinite(v) ? `<div class="dot ${STATUS[st][0]}" style="left:${pos(v, R.sc)}%"></div>` : ''}
+        <div class="ticks"><span>${fmt(R.sc[0])}</span><span>${fmt(R.sc[1])} ${u}</span></div></div>
+        <p class="rel">${band} · ${spread}</p></div></summary>
+        <div class="more"><div class="tablewrap"><table><thead><tr><th>Passage</th><th>Allure</th><th>Valeur</th>${k !== 'heel_hip_pct' ? '<th>Plage des appuis</th>' : ''}</tr></thead><tbody>${rows}</tbody></table></div>
+        <div><p class="ref">${R.ref}</p><p class="rel">Fiabilité ${R.rel}</p></div></div></details>`;
     }
   }
   return h;
