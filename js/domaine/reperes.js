@@ -5,35 +5,39 @@
 //   - « indicatif » : seuil choisi par l'appli faute de norme, toujours affiché comme tel ;
 //   - « aucun »    : pas de norme, la mesure est seulement décrite.
 // et un sens : ce qui pose question est la valeur trop basse (« bas »), trop haute (« haut ») ou les deux.
-// Statuts, une fois retirée la marge de mesure (MARGE) : « ok » dans le repère ; « hors » au-delà de la bande
-// (1 écart-type, soit ~16 % des coureurs de référence d'un côté) ou du seuil indicatif ; « loin » au-delà de
-// 2 écarts-types (~2 %) ; « info » sans repère ; « na » non mesuré.
-// Les repères de Malisoux 2023 suivent l'allure : la moyenne est recentrée sur la vitesse du coureur.
+// Statuts. Pour un repère avec moyenne et écart-type, l'écart se mesure en « écarts-types combinés » :
+// dispersion des coureurs et marge de mesure (MARGE) s'ajoutent en quadrature, √(sd² + marge²).
+// « ok » à moins d'un écart-type combiné (« Dans le repère » si la valeur est dans la bande publiée, « Proche du
+// repère » sinon) ; « hors » au-delà de 1 ; « loin » au-delà de 2 ; dans le sens qui pose question seulement.
+// Bande publiée sans écart-type ou seuil de l'appli : « hors » au-delà de la bande ou du seuil, marge retirée.
+// « info » : pas de repère ; « na » : non mesuré.
+// Les repères de Malisoux 2023 suivent l'allure : moyenne recentrée sur la vitesse du coureur (bornée à la plage
+// étudiée), et écart-type résiduel une fois l'allure prise en compte, sd·√(1 − R²).
 
 export const REPERES = {
   cadence: {
     label: 'Cadence', unit: 'pas/min', sc: [140, 195], fiabilite: 'haute',
     what: 'Nombre de pas par minute, les deux pieds comptés.',
-    nature: 'publie', m: 164, sd: 9, sens: 'bas', pente: 3.07,
+    nature: 'publie', m: 164, sd: 9, sens: 'bas', pente: 3.07, sdAllure: 7.7,
     ref: 'Cadence spontanée : 164 ± 9 pas/min chez ~860 coureurs loisirs à 9,9 km/h en moyenne, +3 pas/min par km/h (Malisoux 2023, tapis).',
   },
   contact_ms: {
     label: 'Temps de contact', unit: 'ms', sc: [180, 400], fiabilite: 'haute (± 1 image)',
     what: 'Durée pendant laquelle le pied reste au sol à chaque pas.',
-    nature: 'publie', m: 289, sd: 35, sens: 'haut', pente: -17.3,
+    nature: 'publie', m: 289, sd: 35, sens: 'haut', pente: -17.3, sdAllure: 21,
     ref: '289 ± 35 ms à 9,9 km/h en moyenne, −17 ms par km/h de plus (Malisoux 2023, tapis).',
   },
   duty: {
     label: 'Part du temps au sol', unit: '%', sc: [25, 55], fiabilite: 'haute',
     what: 'Part de chaque foulée passée au sol plutôt qu\'en l\'air.',
-    nature: 'publie', m: 39, sd: 4, sens: 'haut', pente: -1.63,
+    nature: 'publie', m: 39, sd: 4, sens: 'haut', pente: -1.63, sdAllure: 2.7,
     ref: '39 ± 4 % du temps au sol à 9,9 km/h en moyenne, −1,6 point par km/h de plus (Malisoux 2023, tapis).',
   },
   vosc_cm: {
     label: 'Oscillation verticale (bassin)', unit: 'cm', sc: [3, 15], fiabilite: 'moyenne',
     what: 'De combien le bassin monte et descend à chaque pas.',
     nature: 'publie', m: 7.7, sd: 1.2, sens: 'haut',
-    ref: '7,7 ± 1,2 cm au global, 8,0 ± 1,3 cm chez les hommes (Malisoux 2023, centre de masse sur tapis ; l\'appli suit le bassin).',
+    ref: '7,7 ± 1,2 cm, repère mixte : 8,0 ± 1,3 cm chez les hommes, 7,3 ± 1,1 cm chez les femmes (Malisoux 2023, centre de masse sur tapis ; l\'appli suit le bassin).',
   },
   foot_deg: {
     label: 'Angle du pied au contact', unit: '°', sc: [-15, 40], fiabilite: 'moyenne (± 5°)',
@@ -45,7 +49,7 @@ export const REPERES = {
     label: 'Inclinaison du tibia au contact', unit: '°', sc: [-10, 25], fiabilite: 'moyenne (± 3 à 5°)',
     what: 'Angle du tibia avec la verticale au moment où le pied touche le sol ; positif = le pied arrive devant le genou.',
     nature: 'publie', band: [-5, 5], sens: 'haut',
-    ref: 'Repère de technique : à moins de 5° de la verticale (grille d\'analyse vidéo de Barrett 2023) ; au-delà, le pied se pose devant le genou.',
+    ref: 'Critère de technique utilisé en analyse vidéo de la course : à moins de 5° de la verticale (Barrett 2023) ; au-delà, le pied se pose devant le genou.',
   },
   heel_hip_pct: {
     label: 'Talon devant le bassin au contact', unit: '% jambe', sc: [-5, 50], fiabilite: 'moyenne',
@@ -56,8 +60,8 @@ export const REPERES = {
   knee_ic: {
     label: 'Flexion du genou au contact', unit: '°', sc: [0, 30], fiabilite: 'moyenne',
     what: 'Pliure du genou au moment où le pied touche le sol (0° = jambe tendue).',
-    nature: 'publie', m: 10.2, sd: 4.8, sens: 'bas',
-    ref: 'Moyenne : 10,2 ± 4,8° chez des coureurs loisirs (Bramah 2018, 3D, 3,2 m/s).',
+    nature: 'aucun',
+    ref: 'Pas de moyenne publiée retenue pour une mesure 2D : les valeurs disponibles viennent d\'études 3D sur tapis.',
   },
   knee_max: {
     label: 'Flexion max du genou en appui', unit: '°', sc: [20, 75], fiabilite: 'faible (jambes croisées)',
@@ -74,7 +78,7 @@ export const REPERES = {
     label: 'Inclinaison du buste', unit: '°', sc: [-15, 20], fiabilite: 'faible à moyenne',
     what: 'Inclinaison du buste ; positif = vers l\'avant.',
     nature: 'publie', m: 7.3, sd: 3.6, sens: 'deux',
-    ref: 'Spontanée : 7,3 ± 3,6° vers l\'avant (Teng & Powers 2014, 3,4 m/s). Un buste plus incliné reporte une partie du travail du genou vers la hanche.',
+    ref: 'Spontanée : 7,3 ± 3,6° vers l\'avant chez des coureurs loisirs (Teng & Powers 2014, 3,4 m/s).',
   },
   elbow: {
     label: 'Angle des coudes', unit: '°', sc: [40, 150], fiabilite: 'moyenne',
@@ -84,23 +88,35 @@ export const REPERES = {
   // vue de dos
   drop: {
     label: 'Inclinaison latérale du bassin en appui', unit: '°', sc: [0, 12], fiabilite: 'modérée à bonne en 2D (Dingenen 2018)',
-    what: 'Abaissement du côté du bassin opposé au pied d\'appui.',
-    nature: 'publie', m: 3.7, sd: 1.9, sens: 'haut',
-    ref: '3,7 ± 1,9° en moyenne chez des coureurs loisirs (Bramah 2018, 3D).',
+    what: 'Abaissement du côté du bassin opposé au pied d\'appui, vu de dos.',
+    nature: 'indicatif', seuil: 5, sens: 'haut',
+    ref: 'Pas de moyenne publiée retenue pour une mesure 2D. Seuil indicatif de l\'appli : 5°, de l\'ordre des critères de technique utilisés en analyse vidéo (Barrett 2023).',
   },
 };
 
-// marge de mesure : en dessous, un écart au repère n'est pas interprété. Seuil de l'appli, d'après l'écart observé
-// entre deux modèles de pose sur une même vidéo ; bassin : plus petite différence détectable en 2D (Dingenen 2018).
+// marge de mesure : désaccord observé entre deux modèles de pose sur une même vidéo (seuil de l'appli, pas une
+// erreur contre une référence) ; bassin : plus petite différence détectable en 2D (Dingenen 2018).
 export const MARGE = { cadence: 3, contact_ms: 25, duty: 3, vosc_cm: 1, foot_deg: 4, shank_deg: 4, heel_hip_pct: 4,
   knee_ic: 4, knee_max: 4, thigh_to: 4, trunk: 3, drop: 2.8 };
 export const BRUIT = MARGE;
 
-const KMH_REF = 9.9; // vitesse moyenne des coureurs de Malisoux 2023
+const KMH_REF = 9.9, KMH_PLAGE = [7, 15]; // vitesse moyenne et plage des coureurs de Malisoux 2023
+const allure = (R, ctx) => R.pente && Number.isFinite(ctx?.speed);
 // moyenne de référence, recentrée sur l'allure du coureur quand la source le permet (ctx.speed en m/s)
-export const moyenne = (R, ctx = {}) => R.pente && Number.isFinite(ctx.speed) ? R.m + R.pente * (ctx.speed * 3.6 - KMH_REF) : R.m;
-// bande « dans le repère » : publiée telle quelle, ou moyenne ± 1 écart-type
-export const bande = (R, ctx) => R.band ?? (R.sd ? [moyenne(R, ctx) - R.sd, moyenne(R, ctx) + R.sd] : null);
+export const moyenne = (R, ctx) => allure(R, ctx)
+  ? R.m + R.pente * (Math.min(KMH_PLAGE[1], Math.max(KMH_PLAGE[0], ctx.speed * 3.6)) - KMH_REF) : R.m;
+const ecartType = (R, ctx) => (allure(R, ctx) && R.sdAllure) || R.sd;
+// bande publiée (la plupart des coureurs) : critère tel quel, ou moyenne ± 1 écart-type
+export const bande = (R, ctx) => R.band ?? (R.sd ? [moyenne(R, ctx) - ecartType(R, ctx), moyenne(R, ctx) + ecartType(R, ctx)] : null);
+// bande élargie de la marge de mesure : en deçà, aucun écart n'est signalé (dessinée en clair sur la jauge)
+export function bandeLarge(k, ctx) {
+  const R = REPERES[k], m = MARGE[k] ?? 0;
+  if (!R || R.nature === 'aucun') return null;
+  if (R.nature === 'indicatif') return R.sens === 'haut' ? [-Infinity, R.seuil + m] : [R.seuil - m, Infinity];
+  // du côté qui ne pose pas question, la zone tolérée va jusqu'au bout de l'échelle
+  const [b0, b1] = R.sd ? [moyenne(R, ctx) - Math.hypot(ecartType(R, ctx), m), moyenne(R, ctx) + Math.hypot(ecartType(R, ctx), m)] : [R.band[0] - m, R.band[1] + m];
+  return [R.sens === 'haut' ? -Infinity : b0, R.sens === 'bas' ? Infinity : b1];
+}
 export const classe = (R, v) => R.classes?.find(([lim]) => v < lim)?.[1];
 
 // écart au repère dans le sens qui pose question (0 dans le repère)
@@ -115,16 +131,38 @@ export function statut(k, v, ctx) {
   const R = REPERES[k];
   if (!R || !Number.isFinite(v)) return 'na';
   if (R.nature === 'aucun') return 'info';
-  const e = ecart(k, v, ctx) - (MARGE[k] ?? 0);
-  if (e <= 0) return 'ok';
-  return R.sd && e > R.sd ? 'loin' : 'hors';
+  if (R.sd && R.nature === 'publie') {
+    const d = v - moyenne(R, ctx), z = (R.sens === 'bas' ? -d : R.sens === 'haut' ? d : Math.abs(d)) / Math.hypot(ecartType(R, ctx), MARGE[k] ?? 0);
+    return z > 2 ? 'loin' : z > 1 ? 'hors' : 'ok';
+  }
+  return ecart(k, v, ctx) - (MARGE[k] ?? 0) > 0 ? 'hors' : 'ok';
+}
+// dans la bande publiée elle-même, des deux côtés (une cadence très haute n'est pas « dans la moyenne », même si
+// elle ne pose pas question) ; pour un seuil de l'appli, du bon côté du seuil
+export function dansBande(k, v, ctx) {
+  const R = REPERES[k];
+  if (!R || R.nature === 'aucun' || !Number.isFinite(v)) return false;
+  if (R.nature === 'indicatif') return statut(k, v, ctx) === 'ok' && ecart(k, v, ctx) === 0;
+  const [b0, b1] = bande(R, ctx);
+  return v >= b0 && v <= b1;
 }
 
+// libellés génériques (constats « En bref ») ; sur une mesure, libelle() dit en plus dans quel sens
 export const LIBELLES = {
-  ok: 'Dans le repère', hors: 'Écart au repère', loin: 'Fort écart au repère', info: 'Pour info', na: 'Non mesuré',
+  ok: 'Dans la moyenne', hors: 'Différent de la plupart', loin: 'Très différent de la plupart', info: 'Pour info', na: 'Non mesuré',
 };
-// pour un seuil de l'appli, on ne parle pas de « repère »
-export const libelle = (k, st) => REPERES[k]?.nature === 'indicatif' && st === 'hors' ? 'Au-delà du seuil indicatif' : LIBELLES[st];
+// libellé d'une mesure : où se situe la valeur par rapport à la plupart des coureurs, en langage courant.
+// « la moyenne » pour un repère de population, « le repère » pour un critère de technique sans moyenne publiée.
+export function libelle(k, st, v, ctx) {
+  const R = REPERES[k];
+  if (!R || st === 'na' || st === 'info' || !Number.isFinite(v)) return LIBELLES[st];
+  if (R.nature === 'indicatif') return st === 'hors' ? 'Au-delà du seuil indicatif' : 'En deçà du seuil indicatif';
+  const ref = R.sd ? 'la moyenne' : 'le repère', [b0, b1] = bande(R, ctx);
+  if (v >= b0 && v <= b1) return R.sd ? 'Dans la moyenne' : 'Dans le repère';
+  const sens = v > b1 ? 'haut' : 'bas';
+  if (st === 'ok') return R.sens === 'deux' || R.sens === sens ? `Proche ${R.sd ? "de la moyenne" : "du repère"}` : `Plus ${sens} que ${ref}`;
+  return `${st === 'loin' ? 'Bien plus' : 'Plus'} ${sens} que ${ref}`;
+}
 
 const med = (a) => {
   const b = a.filter(Number.isFinite).sort((x, y) => x - y);

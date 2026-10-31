@@ -1,5 +1,5 @@
 // Rapport d'une analyse : à retenir, constats, pistes d'entraînement, mesures, vues de face / dos, lecteur, méthode.
-import { REPERES, bande, classe, statut, libelle, typique, LIBELLES } from '../domaine/reperes.js';
+import { REPERES, bande, bandeLarge, classe, statut, libelle, typique, LIBELLES } from '../domaine/reperes.js';
 import { VUES, ETATS, etat, profils, frontaux, appuis } from '../domaine/analyse.js';
 import { bilan } from '../domaine/recommandations.js';
 import { qualite } from '../domaine/qualite.js';
@@ -12,16 +12,16 @@ const chip = (st, texte) => `<span class="chip ${CLASSE[st]}">${texte}</span>`;
 const DEC = { vosc_cm: 1 };
 const GROUPES = [
   ['Rythme et appuis', ['cadence', 'contact_ms', 'duty', 'vosc_cm']],
-  ['Attaque du pied', ['shank_deg', 'heel_hip_pct', 'knee_ic']],
+  ['Attaque du pied', ['shank_deg', 'heel_hip_pct']],
   ['Appui et posture', ['knee_max', 'trunk']],
-  ['Pour info (sans repère publié)', ['foot_deg', 'thigh_to', 'elbow']],
+  ['Pour info (sans repère publié)', ['foot_deg', 'knee_ic', 'thigh_to', 'elbow']],
 ];
-// explications derrière une icône ⓘ : la bulle (popover natif) est rangée en fin de rapport, hors des <summary>
-let bulles = [];
+// explications derrière une icône ⓘ : bulle native (popovertarget), ancrée sur l'icône quand le navigateur sait le
+// faire ; à l'impression, la bulle s'affiche en clair à sa place. Sans popover : repli en dépliant sous l'icône.
+let nBulles = 0;
 const info = (html, label = 'Explication') => {
-  const id = `bulle-${bulles.length + 1}`;
-  bulles.push(`<div id="${id}" popover class="tip">${html}</div>`);
-  return `<button type="button" class="info" data-tip="${id}" aria-label="${label}">i</button>`;
+  const id = `bulle-${++nBulles}`;
+  return `<button type="button" class="info" popovertarget="${id}" aria-label="${esc(label)}" style="anchor-name:--${id}">i</button><span id="${id}" popover class="tip" role="note" style="position-anchor:--${id}">${html}</span>`;
 };
 const source = ([nom, pmid]) => `<a href="https://pubmed.ncbi.nlm.nih.gov/${pmid}/" target="_blank" rel="noopener">${nom}</a>`;
 
@@ -36,14 +36,16 @@ function repereTexte(R, d, ctx) {
 }
 
 const pos = (x, sc) => Math.max(0, Math.min(100, (x - sc[0]) / (sc[1] - sc[0]) * 100));
-function mesuresHTML(prof) {
+function mesuresHTML(prof, exercices) {
   const ty = typique(prof.map((p) => p.metrics)), n = prof.length;
+  const pisteDe = (k) => exercices.findIndex((x) => x.vise.includes(k));
   let h = '';
   for (const [g, keys] of GROUPES) {
     const pourInfo = keys.every((k) => REPERES[k].nature === 'aucun');
     h += pourInfo ? `<details class="grpinfo"><summary class="grp">${g}</summary>` : `<h3 class="grp">${g}</h3>`;
     for (const k of keys) {
       const R = REPERES[k], d = DEC[k] ?? 0, v = ty[k], u = R.unit, st = statut(k, v, ty), b = R.nature === 'aucun' ? null : bande(R, ty);
+      const bl = bandeLarge(k, ty)?.map((x) => Math.max(R.sc[0], Math.min(R.sc[1], x))), piste = pisteDe(k);
       const vals = prof.map((p) => p.metrics[k]).filter(Number.isFinite);
       const rk = { heel_hip_pct: 'heel_hip_cm' }[k] ?? k;
       const r0 = prof[0].metrics.ranges?.[rk];
@@ -56,14 +58,15 @@ function mesuresHTML(prof) {
       }).join('');
       // une ligne par mesure ; le détail (passages, source, fiabilité) ne s'ouvre d'office que hors repère
       h += `<details class="metric" id="m-${k}"${st === 'hors' || st === 'loin' ? ' open' : ''}><summary>
-        <div class="name"><h4>${R.label} ${info(`<p>${R.what}</p><p class="muted">${spread[0].toUpperCase() + spread.slice(1)}.</p>`, `Ce que mesure : ${R.label}`)} ${chip(st, libelle(k, st))}</h4>
-        <div class="vals"><b>${fmt(v, d)} ${u}</b>${extra}</div></div>
+        <div class="name"><h4>${R.label} ${info(`<p>${R.what}</p><p class="muted">${spread[0].toUpperCase() + spread.slice(1)}.</p>`, `Ce que mesure : ${R.label}`)} ${chip(st, libelle(k, st, v, ty))}</h4>
+        <div class="vals"><b>${fmt(v, d)} ${u}</b>${extra}${piste >= 0 ? ` <a href="#piste-${piste + 1}" class="see">voir la piste ${piste + 1}</a>` : ''}</div></div>
         <div><div class="gauge" role="img" aria-label="${R.label} : ${fmt(v, d)} ${u}. ${repereTexte(R, d, ty)}"><div class="track"></div>
+        ${bl ? `<div class="bandl" style="left:${pos(bl[0], R.sc)}%;width:${pos(bl[1], R.sc) - pos(bl[0], R.sc)}%"></div>` : ''}
         ${b ? `<div class="bandz" style="left:${pos(b[0], R.sc)}%;width:${pos(b[1], R.sc) - pos(b[0], R.sc)}%"></div>` : ''}
         ${n > 1 ? vals.map((x) => `<div class="pt" style="left:${pos(x, R.sc)}%"></div>`).join('') : ''}
         ${Number.isFinite(v) ? `<div class="dot ${CLASSE[st]}" style="left:${pos(v, R.sc)}%"></div>` : ''}
         <div class="ticks"><span>${fmt(R.sc[0])}</span><span>${fmt(R.sc[1])} ${u}</span></div></div>
-        <p class="rel">${repereTexte(R, d, ty)}</p></div></summary>
+        <p class="rel">${repereTexte(R, d, ty)}${n > 1 ? ' · un trait = un passage' : ''}</p></div></summary>
         <div class="more"><div>${PHOTO[k] ? `<figure class="mphoto"><canvas width="420" height="420" data-k="${k}"></canvas><figcaption></figcaption></figure>` : ''}${n > 1 ? `<div class="tablewrap"><table><thead><tr><th>Passage</th><th>Allure</th><th>Valeur</th>${k !== 'heel_hip_pct' ? '<th>Plage des appuis</th>' : ''}</tr></thead><tbody>${rows}</tbody></table></div>` : ''}</div>
         <div><p class="ref">${R.ref}</p><p class="rel">Fiabilité ${R.fiabilite}</p></div></div></details>`;
     }
@@ -79,11 +82,11 @@ function frontalHTML(p) {
   if (e !== 'exploitable') return `${titre}<p class="empty">${hid || 'Aucun appui repéré sur ce passage : pieds masqués ou coureur trop loin.'}</p>`;
   const back = p.kind === 'dos';
   const warn = m.obliqueWarn ? '<p class="note">Le coureur se déplace de biais par rapport à la caméra : largeur d\'appui, bassin et genou sont faussés par la perspective. Mesures indicatives seulement.</p>' : '';
-  const rows = m.contacts.map((c) => `<tr><td>${c.side}</td><td class="num">${fmt(c.f0)}–${fmt(c.f1)}</td><td class="num">${fmt(c.lateral)} %</td><td>${c.lateral < 0 ? 'croise' : 'de son côté'}</td>${back ? `<td class="num">${fmt(c.drop, 1)}°</td><td class="num">${fmt(c.fppa)}°</td>` : ''}</tr>`).join('');
+  const rows = m.contacts.map((c) => `<tr><td>${c.side}</td><td class="num">${fmt(c.f0)}–${fmt(c.f1)}</td><td class="num">${fmt(c.lateral)} %</td><td>${c.lateral < 0 ? 'croise' : 'de son côté'}</td>${back ? `<td class="num">${fmt(c.drop, 1)}°</td>` : ''}</tr>`).join('');
   const cotes = [m.drop.gauche, m.drop.droite].filter(Number.isFinite), sd = statut('drop', cotes.length ? Math.max(...cotes) : NaN);
-  return `${titre.replace('</h3>', ` ${info(`Pied / ligne médiane : position du talon par rapport au milieu du bassin, en % de la largeur du bassin (négatif = le pied croise la ligne), sans moyenne publiée. ${back ? `Inclinaison latérale du bassin : ${REPERES.drop.ref} Inclinaison de caméra estimée et retirée : ${fmt(m.roll, 1)}°. Genou : + = vers l'intérieur ; 4,0 ± 3,3° en moyenne (Vasconcelos 2022), pas de seuil.` : 'De face, le bassin et le genou ne sont pas chiffrés : filme de dos pour les obtenir.'}`, 'Comment lire cette vue')}</h3>`)}${warn}${hid ? `<p class="note">${hid}</p>` : ''}
-  <p>Pied par rapport à la ligne médiane : <b>${fmt(m.lateralMed)} %</b> de la largeur du bassin (médiane) · <b>${m.crossings}</b> appui${m.crossings > 1 ? 's' : ''} sur ${m.contacts.length} croise${m.crossings > 1 ? 'nt' : ''} la ligne.${back ? ` Inclinaison latérale du bassin : gauche <b>${fmt(m.drop.gauche, 1)}°</b>, droite <b>${fmt(m.drop.droite, 1)}°</b> ${m.obliqueWarn ? '' : chip(sd, libelle('drop', sd))}.` : ''}</p>
-  <details class="fdet"><summary>Détail des ${m.contacts.length} appuis</summary><div class="tablewrap"><table><thead><tr><th>Appui</th><th>Images</th><th>Pied / ligne médiane</th><th></th>${back ? '<th>Bassin</th><th>Genou (plan frontal)</th>' : ''}</tr></thead><tbody>${rows}</tbody></table></div></details>
+  return `${titre.replace('</h3>', ` ${info(`Pied / ligne médiane : position du talon par rapport au milieu du bassin, en % de la largeur du bassin (négatif = le pied croise la ligne), sans moyenne publiée. ${back ? `Inclinaison latérale du bassin : ${REPERES.drop.ref} Inclinaison de caméra estimée et retirée : ${fmt(m.roll, 1)}°.` : 'De face, le bassin n\'est pas chiffré : filme de dos pour l\'obtenir.'}`, 'Comment lire cette vue')}</h3>`)}${warn}${hid ? `<p class="note">${hid}</p>` : ''}
+  <p>Pied par rapport à la ligne médiane : <b>${fmt(m.lateralMed)} %</b> de la largeur du bassin (médiane) · <b>${m.crossings}</b> appui${m.crossings > 1 ? 's' : ''} sur ${m.contacts.length} croise${m.crossings > 1 ? 'nt' : ''} la ligne.${back ? ` Inclinaison latérale du bassin : gauche <b>${fmt(m.drop.gauche, 1)}°</b>, droite <b>${fmt(m.drop.droite, 1)}°</b> ${m.obliqueWarn ? '' : chip(sd, libelle('drop', sd, cotes.length ? Math.max(...cotes) : NaN))}.` : ''}</p>
+  <details class="fdet"><summary>Détail des ${m.contacts.length} appuis</summary><div class="tablewrap"><table><thead><tr><th>Appui</th><th>Images</th><th>Pied / ligne médiane</th><th></th>${back ? '<th>Bassin</th>' : ''}</tr></thead><tbody>${rows}</tbody></table></div></details>
 `;
 }
 
@@ -94,16 +97,16 @@ function qualiteHTML(a) {
     <ul>${q.map((x) => `<li class="${x.ok ? 'qok' : 'qko'}">${x.texte}${x.conseil ? `<span>${x.conseil}</span>` : ''}</li>`).join('')}</ul></details>`;
 }
 
-// « À retenir » : ce qu'un coureur doit lire en 10 secondes
-function retenirHTML(a, constats, exercices, prof) {
-  const ty = typique(prof.map((p) => p.metrics));
-  const fait = constats.find((c) => c.st === 'hors' || c.st === 'loin'), moyenneOk = constats.find((c) => c.t === 'Dans la moyenne');
+// « À retenir » : calculé par bilan(), seulement mis en forme ici
+function retenirHTML(a, r) {
   const ko = qualite(a).filter((x) => !x.ok).length;
   const lignes = [
-    fait ? `<li class="r-fait"><b>${fait.t}.</b> ${fait.d}</li>` : '<li class="r-fait"><b>Rien de marquant</b> : tes mesures sont proches des repères publiés.</li>',
-    exercices[0] ? `<li class="r-action">→ <b>Essaie :</b> ${exercices[0].t.replace(/^./, (c) => c.toLowerCase())}.</li>` : '',
-    moyenneOk ? `<li>Dans la moyenne : ${moyenneOk.d.replace(/^./, (c) => c.toLowerCase())}</li>` : '',
-    prof.length ? `<li class="muted">Allure ${pace(ty.pace)} /km · cadence ${fmt(ty.cadence)} pas/min · contact ${fmt(ty.contact_ms)} ms</li>` : '',
+    r.aucunProfil ? '<li class="r-fait"><b>Pas de mesure de profil</b> : aucun passage de profil exploitable. Les mesures principales (cadence, contact, attaque du pied) manquent.</li>'
+      : r.principal ? `<li class="r-fait"><b>${r.principal.t}.</b> ${r.principal.d}</li>`
+      : '<li class="r-fait"><b>Rien de marquant</b> : tes mesures de profil sont proches des repères publiés.</li>',
+    r.action ? `<li class="r-action">→ <b>Essaie :</b> <a href="#piste-1" class="see">${r.action.t.replace(/^./, (c) => c.toLowerCase())}</a>.</li>` : '',
+    r.moyenne.length ? `<li>Dans la moyenne : ${r.moyenne.join(', ')}.</li>` : '',
+    r.resume ? `<li class="muted">Allure ${pace(r.resume.pace)} /km · cadence ${fmt(r.resume.cadence)} pas/min · contact ${fmt(r.resume.contact)} ms · ${r.appuis}</li>` : '',
     `<li class="muted">${ko ? `Tournage : ${ko} conseil${ko > 1 ? 's' : ''} pour la prochaine vidéo` : 'Tournage : rien à redire'} · <a href="#tournage" class="see">voir</a></li>`,
   ];
   return `<section id="retenir" class="retenir"><h2>À retenir</h2><ul>${lignes.join('')}</ul></section>`;
@@ -114,7 +117,8 @@ function retenirHTML(a, constats, exercices, prof) {
 export async function afficherRapport(a, actions) {
   actions.show('report');
   const prof = profils(a), fr = frontaux(a);
-  const { constats, exercices } = bilan(a);
+  const { constats, exercices, retenir } = bilan(a);
+  nBulles = 0;
   const d = new Date(a.videoDate || a.date);
   const title = a.label || `Analyse du ${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`;
   const R = $('#report');
@@ -127,9 +131,9 @@ export async function afficherRapport(a, actions) {
     ${a.fpsNote ? `<p class="note">${esc(a.fpsNote)}</p>` : ''}
     ${a.recalcule ? '<p class="note">Mesures recalculées avec la version actuelle de l\'analyse.</p>' : ''}
   </header>
-  ${retenirHTML(a, constats, exercices, prof)}
-  <section id="bref"><h2>En bref</h2><ul class="prio">${constats.filter((c) => c.t !== 'Rien de marquant' && c.t !== 'Dans la moyenne').map((c) => `<li>${chip(c.st, c.label ?? LIBELLES[c.st])}<h4>${c.t}</h4><p>${c.d}${c.cle ? ` <a href="#${c.cle === 'frontal' ? 'frontal' : `m-${c.cle}`}" class="see">Voir la mesure</a>` : ''}</p></li>`).join('')}</ul></section>
-  ${exercices.length ? `<section id="plan"><h2>Pistes d'entraînement</h2><div class="plan">${exercices.map((x) => `<article><h4>${x.t}</h4><ul>${x.li.map((l) => `<li>${l}</li>`).join('')}</ul><p class="why">Pourquoi ? ${info(`<p>${x.why}</p>${x.sources ? `<p class="src">Sources : ${x.sources.map(source).join(' · ')}</p>` : ''}`, 'Pourquoi cette piste')}</p></article>`).join('')}</div></section>` : ''}
+  ${retenirHTML(a, retenir)}
+  <section id="bref"><h2>En bref</h2><ul class="prio">${constats.filter((c) => c !== retenir.principal).map((c) => `<li>${chip(c.st, c.label ?? LIBELLES[c.st])}<h4>${c.t}</h4><p>${c.d}${c.cle ? ` <a href="#${c.cle === 'frontal' ? 'frontal' : `m-${c.cle}`}" class="see">Voir la mesure</a>` : ''}</p></li>`).join('')}</ul></section>
+  ${exercices.length ? `<section id="plan"><h2>Pistes d'entraînement</h2><div class="plan">${exercices.map((x, i) => `<article id="piste-${i + 1}"><h4>${x.t}</h4><ul>${x.li.map((l) => `<li>${l}</li>`).join('')}</ul><p class="why">Pourquoi ? ${info(`<p>${x.why}</p>${x.sources ? `<p class="src">Sources : ${x.sources.map(source).join(' · ')}</p>` : ''}`, 'Pourquoi cette piste')}</p></article>`).join('')}</div></section>` : ''}
   <section id="passages"><details class="fdet"><summary>Détail des ${a.passes.length} passages repérés</summary><div class="tablewrap"><table><thead><tr><th>Passage</th><th>Images analysées</th><th class="num">Allure</th><th class="num">Cadence</th><th class="num">Pas</th><th class="num">Contact · vol</th><th>Appuis</th></tr></thead><tbody>${a.passes.map((p, i) => {
     const m = p.metrics || {}, e = etat(p), run = p.kind === 'profil' && e === 'exploitable';
     const app = e === 'exploitable' ? `${p.kind === 'profil' ? m.nSteps : m.contacts.length}` : ETATS[e];
@@ -137,7 +141,7 @@ export async function afficherRapport(a, actions) {
       <td class="num">${run ? `<span class="big">${pace(m.pace)}</span> /km` : '—'}</td><td class="num">${run ? `<span class="big">${fmt(m.cadence)}</span> pas/min` : '—'}</td>
       <td class="num">${run ? `${fmt(m.step_len, 2)} m` : '—'}</td><td class="num">${run ? `${fmt(m.contact_ms)} · ${fmt(m.flight_ms)} ms` : '—'}</td><td>${app}</td></tr>`;
   }).join('')}</tbody></table></div></details>${qualiteHTML(a)}</section>
-  ${prof.length ? `<section id="mesures"><h2>Mesures de profil ${info('<p>Clique sur une mesure pour voir ta photo, le repère publié et la fiabilité.</p><p><b>Dans le repère</b> : comme la plupart des coureurs de référence. <b>Écart</b> : au-delà de la plage habituelle (1 écart-type), une fois retirée la marge de mesure. <b>Fort écart</b> : au-delà de 2 écarts-types.</p>', 'Comment lire les mesures')}</h2>${mesuresHTML(prof)}</section>` : '<section id="mesures"><h2>Mesures de profil</h2><p class="empty">Aucun passage de profil exploitable. Il faut 3 passages de profil d\'au moins 2 s, pieds visibles en entier, téléphone fixe à 3–4 m de la ligne de course. <a href="#" class="see" data-view="new">Revoir comment filmer</a></p></section>'}
+  ${prof.length ? `<section id="mesures"><h2>Mesures de profil ${info('<p>Clique sur une mesure pour voir ta photo, le repère publié et la fiabilité.</p><p><b>Dans la moyenne</b> : comme la plupart des coureurs de référence (à ± 1 écart-type). <b>Plus haut / plus bas que la moyenne</b> : au-delà, une fois prise en compte la marge de mesure ; en vert si ce côté ne pose pas question. <b>Bien plus</b> : au-delà de 2 écarts-types. <b>Proche</b> : hors de la plage, mais dans la marge de mesure.</p>', 'Comment lire les mesures')}</h2>${mesuresHTML(prof, exercices)}</section>` : '<section id="mesures"><h2>Mesures de profil</h2><p class="empty">Aucun passage de profil exploitable. Il faut 3 passages de profil d\'au moins 2 s, pieds visibles en entier, téléphone fixe à 3–4 m de la ligne de course. <a href="#" class="see" data-view="new">Revoir comment filmer</a></p></section>'}
   ${a.passes.some((p) => p.kind !== 'profil') ? `<section id="frontal"><h2>Vue de face / de dos</h2>${a.passes.filter((p) => p.kind !== 'profil').map(frontalHTML).join('')}</section>` : ''}
   <section id="lecteur" class="noprint"><details class="fdet"><summary>Lecteur image par image (pour les curieux)</summary><div class="player">
     <canvas id="pc" width="576" height="576" aria-label="Image analysée avec le squelette"></canvas>
@@ -149,19 +153,21 @@ export async function afficherRapport(a, actions) {
       <div class="readout" id="pread"></div>
       <p class="muted small">Couleurs du squelette ${info('Jaune : côté que le modèle étiquette gauche ; bleu : droit. De profil, le modèle confond parfois les deux jambes.', 'Couleurs du squelette')}</p>
     </div></div></details></section>
-  <section id="methode"><p class="muted small"><b>Outil d'aide à la technique de course, pas un dispositif médical.</b> En cas de douleur, demande l'avis d'un professionnel de santé.</p>
+  <section id="methode"><p class="muted small"><b>Outil d'aide à la technique de course, pas un dispositif médical</b> : il ne remplace pas l'avis d'un professionnel.</p>
     <details class="fdet"><summary>Méthode, limites et sources</summary>
     <p>Le coureur est repéré par soustraction du fond (caméra fixe), recadré puis analysé image par image par MediaPipe Pose (33 points). Un appui de profil est détecté quand la pointe du pied reste immobile dans l'image ; contact initial = arrêt du talon, décollage = départ de la pointe. L'échelle vient de la longueur cuisse + jambe estimée à 49,1 % de la taille (tables de Winter). Les angles 2D sans marqueurs ont une erreur de quelques degrés, plus grande au pied et quand les jambes se croisent ; MediaPipe n'a pas été validé contre une capture 3D en course.</p>
-    <p>Les repères sont pour la plupart des moyennes de groupe mesurées en 3D, souvent sur tapis : ce sont des points de comparaison, pas des normes. « Écart au repère » signifie au-delà d'un écart-type de la moyenne publiée, une fois retirée la marge de mesure ; « fort écart », au-delà de deux. Temps de contact, part au sol et cadence sont comparés à la moyenne attendue à ton allure. Les seuils propres à l'appli sont signalés comme indicatifs.</p>
-    <p class="muted">Sources des repères : Malisoux et al. 2023 (OJSM) ; Lieberman et al. 2015 (J Exp Biol) ; Altman & Davis 2012 (Gait Posture) ; Barrett et al. 2023 (IJSPT) ; Bramah et al. 2018 (AJSM) ; Teng & Powers 2014 (JOSPT) ; Souza 2016 (Phys Med Rehabil Clin N Am) ; Vasconcelos et al. 2022 ; Dingenen et al. 2018 (Phys Ther Sport). Les sources des exercices sont citées avec chacun.</p>
+    <p>Les repères sont pour la plupart des moyennes de groupe mesurées en 3D, souvent sur tapis : ce sont des points de comparaison, pas des normes. « Plus haut / plus bas que la moyenne » : au-delà d'un écart-type de la moyenne publiée, écart-type combiné à la marge de mesure (désaccord observé entre deux modèles de pose) ; « bien plus » : au-delà de deux ; « proche » : hors de la plage publiée mais dans la marge. Temps de contact, part au sol et cadence sont comparés à la moyenne attendue à ton allure (Malisoux 2023, de 7 à 15 km/h). Les seuils propres à l'appli sont signalés comme indicatifs.</p>
+    <p class="muted">Sources des repères : Malisoux et al. 2023 (OJSM) ; Lieberman et al. 2015 (J Exp Biol) ; Altman & Davis 2012 (Gait Posture) ; Barrett et al. 2023 (IJSPT) ; Teng & Powers 2014 (JOSPT) ; Souza 2016 ; Dingenen et al. 2018, pour la fiabilité de la mesure 2D. Les sources des exercices sont citées avec chacun.</p>
     <p class="muted">Détails techniques : ${a.size[0]}×${a.size[1]}, ${fmt(a.fps, 2)} i/s, ${fmt(a.duration, 0)} s · modèle ${a.model} (${a.delegate})${a.decoder ? ` · décodage ${a.decoder === 'webcodecs' ? 'WebCodecs' : 'par sauts'}` : ''} · version d'analyse ${a.algo ?? 1} · analysé le ${new Date(a.date).toLocaleString('fr-FR')}</p></details>
     <div class="actions noprint"><button class="btn ghost" id="del">Supprimer cette analyse</button></div></section>
-  </div><div class="bulles">${bulles.join('')}</div>`;
-  bulles = [];
-  // l'icône est souvent dans un <summary> : on ouvre la bulle sans replier ni déplier la mesure
-  R.querySelectorAll('.info').forEach((b) => b.addEventListener('click', (e) => {
-    e.preventDefault(); e.stopPropagation(); document.getElementById(b.dataset.tip)?.togglePopover();
-  }));
+  </div>`;
+  // un clic dans une bulle (hors lien) ne doit pas replier la mesure dont elle fait partie
+  R.onclick = (e) => { if (e.target.closest('.tip') && !e.target.closest('a')) e.preventDefault(); };
+  if (!('popover' in HTMLElement.prototype)) {
+    // navigateur sans popover : l'icône déplie la bulle sous elle
+    R.classList.add('sans-popover');
+    R.querySelectorAll('.info').forEach((b) => b.addEventListener('click', (e) => { e.preventDefault(); document.getElementById(b.getAttribute('popovertarget'))?.classList.toggle('ouverte'); }));
+  }
   $('#exp').onclick = () => exporterJSON(a);
   $('#print').onclick = () => { R.querySelectorAll('details.metric').forEach((x) => { x.open = true; }); print(); };
   // liens internes : défilement doux, et la mesure visée s'ouvre

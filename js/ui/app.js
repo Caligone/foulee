@@ -140,7 +140,7 @@ async function renderHistory() {
   const cmp = list.length > 1 ? `<section class="card compare"><h2>Comparer deux analyses</h2>
     <div class="row"><label>Avant<select id="cmpb">${opts(1)}</select></label><label>Après<select id="cmpa">${opts(0)}</select></label></div><div id="cmpout"></div></section>` : '';
   const vieilles = list.filter((x) => (x.algo ?? 1) !== ALGO).length;
-  H.innerHTML = `${cmp}${vieilles ? `<p class="note">${vieilles} analyse${vieilles > 1 ? 's' : ''} enregistrée${vieilles > 1 ? 's' : ''} avec une version précédente : leurs mesures ne sont recalculées qu'à l'ouverture du rapport.</p>` : ''}
+  H.innerHTML = `${cmp}${vieilles ? `<p class="note">${vieilles} analyse${vieilles > 1 ? 's' : ''} enregistrée${vieilles > 1 ? 's' : ''} avec une version précédente : elles n'ont pas pu être recalculées (enregistrement ancien) : leurs mesures restent celles de l'époque.</p>` : ''}
     <div class="tablewrap"><table><thead><tr><th>Date</th><th>Libellé</th><th>Vues</th><th>Allure</th><th>Cadence</th><th>Contact ms</th><th>Tibia °</th><th>Talon/bassin %</th><th>Buste °</th></tr></thead><tbody>${list.map(row).join('')}</tbody></table></div>
     <p class="muted">Vues : P = profil, F = face, D = dos. Clique sur une ligne pour rouvrir le rapport.</p>
     <div class="actions"><button class="btn ghost" id="delall">Effacer tout l'historique</button></div>`;
@@ -150,7 +150,7 @@ async function renderHistory() {
     $('#delall').onclick = async () => { $('#delall').disabled = true; await deleteAll(); ignorees.clear(); renderHistory(); };
   };
   H.querySelectorAll('tr.clickable').forEach((tr) => {
-    const open = async () => { const a = await getAnalysis(tr.dataset.id); if (a) rapport(aJour(a)); };
+    const open = async () => { const a = await getAnalysis(tr.dataset.id); if (a) await rapport(aJour(a)).catch(fail); };
     tr.addEventListener('click', open); tr.addEventListener('keydown', (e) => { if (e.key === 'Enter') open(); });
   });
 }

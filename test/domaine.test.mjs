@@ -1,29 +1,38 @@
 // Tests du domaine (node --test) : repères, statuts, comparaison, états des passages, recommandations.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { REPERES, statut, ecart, comparer, typique, libelle } from '../js/domaine/reperes.js';
+import { REPERES, statut, ecart, comparer, typique, libelle, dansBande } from '../js/domaine/reperes.js';
 import { etat, appuis, aJour, ALGO } from '../js/domaine/analyse.js';
 import { bilan } from '../js/domaine/recommandations.js';
 import { pace, fmt } from '../js/format.js';
 
-test('statut : bande à 1 écart-type, « loin » au-delà de 2, marge de mesure retirée, dans le sens qui pose question', () => {
+test('statut : écart en écarts-types combinés √(sd² + marge²), dans le sens qui pose question', () => {
   assert.equal(statut('cadence', 164), 'ok');
   assert.equal(statut('cadence', 176), 'ok'); // une cadence haute n'est pas signalée
-  assert.equal(statut('cadence', 153), 'ok'); // sous la bande (155) mais dans la marge de 3 pas/min
-  assert.equal(statut('cadence', 150), 'hors');
+  assert.equal(statut('cadence', 156), 'ok');
+  assert.equal(statut('cadence', 153), 'hors'); // 11 sous la moyenne > √(9² + 3²) ≈ 9,5
   assert.equal(statut('cadence', 140), 'loin');
-  assert.equal(statut('trunk', 2), 'ok'); // 1,7° sous la bande, marge de 3°
+  assert.equal(statut('trunk', 3), 'ok'); // 4,3° sous la moyenne < √(3,6² + 3²) ≈ 4,7
   assert.equal(statut('trunk', -1), 'hors');
-  assert.equal(statut('trunk', -6), 'loin');
+  assert.equal(statut('trunk', -3), 'loin');
   assert.equal(statut('trunk', 16), 'hors');
 });
 
-test('repères selon l\'allure (Malisoux 2023) : la moyenne suit la vitesse', () => {
-  const lent = { speed: 8 / 3.6 }, rapide = { speed: 14 / 3.6 };
+test('repères selon l\'allure (Malisoux 2023) : moyenne et écart-type résiduel suivent la vitesse, bornée à 7–15 km/h', () => {
+  const lent = { speed: 8 / 3.6 }, rapide = { speed: 14 / 3.6 }, sprint = { speed: 25 / 3.6 };
   assert.equal(statut('contact_ms', 330, lent), 'ok'); // ~322 ms attendus à 8 km/h
-  assert.equal(statut('contact_ms', 330), 'ok');
-  assert.equal(statut('contact_ms', 300, rapide), 'hors'); // ~218 ms attendus à 14 km/h
+  assert.equal(statut('contact_ms', 300, rapide), 'loin'); // ~218 ms attendus à 14 km/h
   assert.equal(statut('contact_ms', 300), 'ok'); // sans vitesse : repère moyen
+  assert.equal(statut('contact_ms', 220, sprint), statut('contact_ms', 220, { speed: 15 / 3.6 })); // pas d'extrapolation
+});
+
+test('libellé : dit le sens, en langage courant', () => {
+  assert.equal(libelle('shank_deg', statut('shank_deg', 8), 8), 'Proche du repère');
+  assert.equal(libelle('shank_deg', statut('shank_deg', 3), 3), 'Dans le repère');
+  assert.equal(libelle('cadence', statut('cadence', 150), 150), 'Plus bas que la moyenne');
+  assert.equal(libelle('cadence', statut('cadence', 140), 140), 'Bien plus bas que la moyenne');
+  assert.equal(libelle('cadence', statut('cadence', 180), 180), 'Plus haut que la moyenne'); // côté sans souci : vert
+  assert.equal(statut('cadence', 180), 'ok');
 });
 
 test('statut : repère sans écart-type, seuil indicatif, mesure sans repère', () => {
@@ -32,7 +41,7 @@ test('statut : repère sans écart-type, seuil indicatif, mesure sans repère', 
   assert.equal(statut('shank_deg', 8), 'ok'); // 3° au-delà de la bande, marge de 4°
   assert.equal(statut('heel_hip_pct', 17), 'ok'); // seuil 15, marge 4
   assert.equal(statut('heel_hip_pct', 20), 'hors');
-  assert.equal(libelle('heel_hip_pct', 'hors'), 'Au-delà du seuil indicatif');
+  assert.equal(libelle('heel_hip_pct', 'hors', 20), 'Au-delà du seuil indicatif');
   assert.equal(statut('thigh_to', 2), 'info');
   assert.equal(statut('cadence', NaN), 'na');
 });
@@ -49,7 +58,7 @@ test('écart au repère', () => {
   assert.equal(ecart('cadence', 150), 155 - 150);
   assert.equal(ecart('cadence', 180), 0);
   assert.equal(ecart('heel_hip_pct', 25), 10);
-  assert.equal(ecart('cadence', 150, { speed: 9.9 / 3.6 }), 155 - 150);
+  assert.ok(Math.abs(ecart('cadence', 150, { speed: 9.9 / 3.6 }) - (164 - 7.7 - 150)) < 1e-9); // écart-type résiduel à allure connue
 });
 
 test('comparaison : rien sous la marge de mesure, verdict par statut au-delà', () => {
@@ -125,7 +134,8 @@ test('bilan : un côté du bassin manquant n\'efface pas la mesure ; une mesure 
   const m = { footsOk: true, nSteps: 5, shank_deg: 2, heel_hip_pct: 5, vosc_cm: NaN, trunk: 7, cadence: 165, knee_ic: 10, speed: 3, steps: [] };
   const b = bilan({ passes: [profil(m)] });
   assert.ok(!b.constats.some((c) => /Rebond/.test(c.t)));
-  assert.ok(b.constats.some((c) => c.t === 'Rien de marquant'));
+  assert.equal(b.retenir.principal, null);
+  assert.equal(b.retenir.aucunProfil, false);
 });
 
 test('bilan : pas de piste d\'entraînement tirée d\'une vue de biais ; la cadence visée n\'est pas un point fort', () => {
@@ -134,7 +144,8 @@ test('bilan : pas de piste d\'entraînement tirée d\'une vue de biais ; la cade
   const b = bilan({ passes: [profil(m), face] });
   assert.ok(!b.exercices.some((x) => x.cle === 'frontal'));
   assert.ok(b.constats.some((c) => c.label === 'À vérifier'));
-  assert.ok(!b.constats.some((c) => c.t === 'Dans la moyenne' && /cadence/.test(c.d)));
+  assert.ok(!b.retenir.moyenne.includes('cadence')); // la cadence est visée par la piste
+  assert.equal(b.retenir.principal.t, 'Le pied se pose devant le bassin');
 });
 
 test('qualité : la caméra qui bouge est signalée', async () => {
@@ -144,4 +155,14 @@ test('qualité : la caméra qui bouge est signalée', async () => {
   assert.equal(cameraBouge(undefined), false); // analyses anciennes, sans la mesure
   const q = qualite({ fps: 60, mouvement: { agite: 0.6 }, passes: [] });
   assert.ok(q.some((x) => !x.ok && /bouge/.test(x.texte)));
+});
+
+test("À retenir : le constat le plus grave d'abord, rien de rassurant sans profil, « dans la moyenne » seulement dans la bande", () => {
+  const m = { footsOk: true, nSteps: 8, shank_deg: 9, heel_hip_pct: 22, heel_hip_cm: 18, trunk: -4, cadence: 200, contact_ms: 290, duty: 39, vosc_cm: 8, speed: 2.75, steps: [] };
+  const b = bilan({ passes: [profil(m)] });
+  assert.equal(b.retenir.principal.st, 'loin'); // buste à −4° (fort écart) avant le pied devant le bassin (écart)
+  const dos = { kind: 'dos', metrics: { contacts: [{}, {}], crossings: 0, drop: { gauche: 3, droite: 3 }, obliqueWarn: false } };
+  assert.equal(bilan({ passes: [dos] }).retenir.aucunProfil, true);
+  assert.equal(dansBande('cadence', 200, { speed: 2.75 }), false);
+  assert.ok(!bilan({ passes: [profil({ ...m, shank_deg: 2, heel_hip_pct: 5, trunk: 7 })] }).retenir.moyenne.includes('cadence'));
 });

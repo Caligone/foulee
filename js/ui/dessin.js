@@ -36,7 +36,7 @@ export const PHOTO = {
   shank_deg: 'ton tibia', foot_deg: 'ton pied', knee_ic: 'ta jambe sous le genou', trunk: 'ton buste', heel_hip_pct: 'l\'écart talon-bassin',
 };
 export async function drawTarget(canvas, fr, k, v, dir, col) {
-  const S = canvas.width, ctx = canvas.getContext('2d'), R = REPERES[k], band = R.nature === 'aucun' ? null : bande(R);
+  const S = canvas.width, ctx = canvas.getContext('2d'), R = REPERES[k], band = R.nature === 'publie' ? bande(R) : null;
   const lm = fr.lm; if (!lm) return;
   // zoom sur la zone utile : bassin et jambes, plus les épaules pour le buste
   const ids = [23, 24, 25, 26, 27, 28, 29, 30, 31, 32, ...(k === 'trunk' ? [0, 11, 12] : [])];
@@ -73,7 +73,7 @@ export async function drawTarget(canvas, fr, k, v, dir, col) {
     ctx.fillStyle = col; ctx.beginPath(); ctx.arc(...A, 7, 0, 7); ctx.fill();
   }
   const lab = k === 'heel_hip_pct' ? `Toi : talon ${fmt(v)} % de jambe devant` : `Toi : ${fmt(v)}°`;
-  const cib = R.nature === 'indicatif' ? `Seuil indicatif : moins de ${fmt(R.seuil)} %` : band ? `Repère : ${fmt(band[0], 1).replace(',0', '')} à ${fmt(band[1], 1).replace(',0', '')}°` : '';
+  const cib = R.nature === 'indicatif' ? `Seuil indicatif : ${fmt(R.seuil)} ${R.unit}` : band ? `Repère : ${fmt(band[0])} à ${fmt(band[1])} ${R.unit}` : '';
   tag(ctx, lab, 10, 26, S, col, '#111');
   if (cib) tag(ctx, cib, 10, 26 + S / 26 + 16, S, green, '#111');
 }
