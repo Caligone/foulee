@@ -98,7 +98,6 @@ async function renderReport(a) {
   const prof = a.passes.filter((p) => p.kind === 'profil' && p.metrics && !p.metrics.error && p.metrics.nSteps >= 2);
   const fr = a.passes.filter((p) => p.kind !== 'profil' && p.metrics && !p.metrics.error);
   const { cards, plan } = synthesize(a.passes);
-  const prev = (await listAnalyses().catch(() => [])).filter((x) => x.id !== a.id && x.date < a.date)[0];
   const d = new Date(a.videoDate || a.date);
   const title = a.label || `Analyse du ${d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })}`;
   const R = $('#report');
@@ -112,7 +111,6 @@ async function renderReport(a) {
   </header>
   <section id="bref"><h2>En bref</h2><ul class="prio">${cards.map((c) => `<li><span class="chip ${STATUS[c.st][0]}">${STATUS[c.st][1]}</span><h4>${c.t}</h4><p>${c.d}${c.href ? ` <a href="${c.href}" class="see">Voir la mesure</a>` : ''}</p></li>`).join('')}</ul></section>
   ${plan.length ? `<section id="plan"><h2>Quoi travailler</h2><div class="plan">${plan.map((p) => `<article><h4>${p.t}</h4><ul>${p.li.map((x) => `<li>${x}</li>`).join('')}</ul><p class="why">${p.why}</p></article>`).join('')}</div></section>` : ''}
-  ${prev ? compareHTML(a, prev) : ''}
   <section id="images"><h2>Images clés</h2><div class="keyimgs" id="keys"></div></section>
   <section><h2>Passages et rythme</h2><div class="tablewrap"><table><thead><tr><th>Passage</th><th>Images analysées</th><th class="num">Allure</th><th class="num">Cadence</th><th class="num">Pas</th><th class="num">Contact · vol</th><th>Appuis</th></tr></thead><tbody>${a.passes.map((p, i) => {
     const m = p.metrics || {}, run = p.kind === 'profil' && prof.includes(p);
@@ -172,10 +170,11 @@ function frontalHTML(p, a) {
   <p class="ref">Pied / ligne médiane : position du talon par rapport au milieu du bassin, en % de la largeur du bassin (négatif = le pied croise la ligne). ${back ? `Chute du bassin : sains 3,7 ± 1,9°, blessés 6,4 ± 2,1° (Bramah 2018). Inclinaison de caméra estimée et retirée : ${fmt(m.roll, 1)}°. Genou : + = vers l'intérieur ; asymptomatiques 4,0 ± 3,3° (Vasconcelos 2022), pas de seuil.` : 'De face, la chute du bassin et le genou ne sont pas chiffrés : filme de dos pour les obtenir.'}</p>`;
 }
 
-function compareHTML(a, prev) {
-  const cur = a.passes.filter((p) => p.kind === 'profil' && p.metrics?.nSteps >= 2).map((p) => p.metrics);
-  const old = prev.summary.filter((p) => p.kind === 'profil' && p.metrics?.nSteps >= 2).map((p) => p.metrics);
-  if (!cur.length || !old.length) return '';
+// comparaison de deux analyses de l'historique (résumés de listAnalyses)
+function compareHTML(after, before) {
+  const prof = (x) => x.summary.filter((p) => p.kind === 'profil' && p.metrics?.nSteps >= 2).map((p) => p.metrics);
+  const cur = prof(after), old = prof(before);
+  if (!cur.length || !old.length) return '<p class="empty">Il faut un passage de profil exploitable dans chacune des deux analyses.</p>';
   // on compare les passages d'allure la plus proche
   let best = null;
   for (const c of cur) for (const o of old) { const d = Math.abs(c.speed - o.speed); if (!best || d < best.d) best = { c, o, d }; }
@@ -185,9 +184,8 @@ function compareHTML(a, prev) {
     const dv = best.c[k] - best.o[k]; const s = better[k] ? Math.sign(dv) * better[k] : 0;
     return `<tr><td>${REFS[k].label}</td><td class="num">${fmt(best.o[k], k === 'vosc_cm' ? 1 : 0)}</td><td class="num">${fmt(best.c[k], k === 'vosc_cm' ? 1 : 0)}</td><td class="num ${s > 0 ? 'delta-good' : s < 0 ? 'delta-bad' : ''}">${dv >= 0 ? '+' : ''}${fmt(dv, k === 'vosc_cm' ? 1 : 0)}</td><td>${REFS[k].unit}</td></tr>`;
   }).join('');
-  return `<section><h2>Évolution depuis le ${new Date(prev.videoDate || prev.date).toLocaleDateString('fr-FR')}</h2>
-    <p class="muted">Passages d'allure la plus proche : ${pace(best.o.pace)} → ${pace(best.c.pace)} min/km.${best.d > 0.3 ? ' Allures assez différentes : comparaison à prendre avec prudence.' : ''}</p>
-    <div class="tablewrap"><table><thead><tr><th>Mesure</th><th>Avant</th><th>Maintenant</th><th>Écart</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></section>`;
+  return `<p class="muted">Passages d'allure la plus proche : ${pace(best.o.pace)} → ${pace(best.c.pace)} min/km.${best.d > 0.3 ? ' Allures assez différentes : comparaison à prendre avec prudence.' : ''}</p>
+    <div class="tablewrap"><table><thead><tr><th>Mesure</th><th>Avant</th><th>Après</th><th>Écart</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
 }
 
 // photo de chaque mesure : l'appui le plus proche de la valeur retenue (médiane), pas le pire
@@ -288,9 +286,14 @@ async function renderHistory() {
     return `<tr class="clickable" data-id="${x.id}" tabindex="0"><td>${new Date(x.videoDate || x.date).toLocaleDateString('fr-FR')}</td><td>${esc(x.label || x.videoName)}</td><td>${kinds}</td>
       <td class="num">${ps.map((m) => pace(m.pace)).join(' · ') || '—'}</td><td class="num">${j('cadence')}</td><td class="num">${j('contact_ms')}</td><td class="num">${j('shank_deg')}</td><td class="num">${j('heel_hip_pct')}</td><td class="num">${j('trunk')}</td></tr>`;
   };
-  H.innerHTML = `${chartHTML(list)}<div class="tablewrap"><table><thead><tr><th>Date</th><th>Libellé</th><th>Vues</th><th>Allure</th><th>Cadence</th><th>Contact ms</th><th>Tibia °</th><th>Talon/bassin %</th><th>Buste °</th></tr></thead><tbody>${list.map(row).join('')}</tbody></table></div>
+  const dateOf = (x) => `${new Date(x.videoDate || x.date).toLocaleDateString('fr-FR')}${x.label ? ` · ${esc(x.label)}` : ''}`;
+  const opts = (sel) => list.map((x, i) => `<option value="${i}"${i === sel ? ' selected' : ''}>${dateOf(x)}</option>`).join('');
+  const cmp = list.length > 1 ? `<section class="card compare"><h2>Comparer deux analyses</h2>
+    <div class="row"><label>Avant<select id="cmpb">${opts(1)}</select></label><label>Après<select id="cmpa">${opts(0)}</select></label></div><div id="cmpout"></div></section>` : '';
+  H.innerHTML = `${chartHTML(list)}${cmp}<div class="tablewrap"><table><thead><tr><th>Date</th><th>Libellé</th><th>Vues</th><th>Allure</th><th>Cadence</th><th>Contact ms</th><th>Tibia °</th><th>Talon/bassin %</th><th>Buste °</th></tr></thead><tbody>${list.map(row).join('')}</tbody></table></div>
     <p class="muted">Vues : P = profil, F = face, D = dos. Clique sur une ligne pour rouvrir le rapport.</p>
     <div class="actions"><button class="btn ghost" id="delall">Effacer tout l'historique</button></div>`;
+  if (cmp) { const upd = () => { $('#cmpout').innerHTML = compareHTML(list[$('#cmpa').value], list[$('#cmpb').value]); }; $('#cmpa').onchange = $('#cmpb').onchange = upd; upd(); }
   $('#delall').onclick = () => { $('#delall').textContent = `Confirmer : effacer les ${list.length} analyses`;
     $('#delall').onclick = async () => { $('#delall').disabled = true; await deleteAll(); renderHistory(); }; };
   H.querySelectorAll('tr.clickable').forEach((tr) => {
