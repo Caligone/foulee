@@ -2,7 +2,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { REPERES, statut, ecart, comparer, typique, libelle, dansBande } from '../js/domaine/reperes.js';
-import { etat, appuis, aJour, ALGO } from '../js/domaine/analyse.js';
+import { etat, appuis, aJour, ALGO } from '../js/domaine/passages.js';
 import { bilan } from '../js/domaine/recommandations.js';
 import { pace, fmt } from '../js/format.js';
 
@@ -206,7 +206,7 @@ test("bilan : toute mesure en écart a un constat (jamais « Rien de marquant »
 });
 
 test('caméra mobile décidée par passage, sur son agitation propre', async () => {
-  const { fondPassage, cameraBouge } = await import('../js/domaine/analyse.js');
+  const { fondPassage, cameraBouge } = await import('../js/domaine/passages.js');
   const mv = { fond: 0.02, serie: [[1, 0.01], [2, 0.01], [10, 0.3], [11, 0.4], [12, 0.35]] };
   assert.ok(fondPassage(mv, 0, 3) < 0.05);
   assert.ok(fondPassage(mv, 9, 13) > 0.05);

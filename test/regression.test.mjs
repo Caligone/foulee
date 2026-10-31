@@ -4,7 +4,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { mesurer } from '../js/domaine/analyse.js';
+import { mesurer } from '../js/domaine/passages.js';
 
 const dir = new URL('./fixtures/', import.meta.url);
 const fichiers = fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith('.json')) : [];

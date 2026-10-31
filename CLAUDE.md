@@ -12,7 +12,8 @@ App web d'analyse de foulée à partir d'une vidéo de course, 100 % dans le nav
 ## Pièges
 - Avant de commiter : `npm run check` (types du domaine, puis `node --test`). La CI fait la même chose.
 - `js/domaine/` reste pur (pas de DOM). Un statut ne vient que de `reperes.js` (`statut`, `libelle`) ; la synthèse du rapport vient de `bilan()`.
-- Tout changement de résultat dans `mesures.js` : incrémenter `ALGO` (`analyse.js`) et relancer la non-régression sur `test/fixtures/` (exports réels, hors dépôt : données personnelles, ne jamais les commiter).
+- Tout changement de résultat dans `mesures.js` : incrémenter `ALGO` (`passages.js`) et relancer la non-régression sur `test/fixtures/` (exports réels, hors dépôt : données personnelles, ne jamais les commiter).
+- Bloqueurs de pub : EasyPrivacy bloque `/analyse.js` (le module ne charge pas, rien dans la console). Avant de nommer un fichier JS, vérifier qu'il ne ressemble pas à un traceur (analytics, track, stats, pixel…).
 - Tester dans Chrome (`channel: 'chrome'` avec Playwright). Firefox ne décode pas le HEVC en WebCodecs (repli par sauts, ~270 ms/image).
 - Un profil Playwright persistant peut garder l'ancien JS en cache : vider `Cache` et `Code Cache`. Les scripts de test écrivent leurs captures hors du dépôt (`*.png` est ignoré).
 - IndexedDB : jamais un Blob par image (Chrome plante en supprimant un enregistrement de milliers de Blobs) ; les vignettes d'un passage sont dans un seul Blob.

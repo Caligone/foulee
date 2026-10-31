@@ -3,8 +3,8 @@
 
 import { loadPose, openVideo, scanVideo, findPassages, poseOnPassage } from './infra/video.js';
 import { openFrames } from './infra/images.js';
-import { ALGO, mesurer } from './domaine/analyse.js';
-import { cameraBouge, fondPassage } from './domaine/analyse.js';
+import { ALGO, mesurer } from './domaine/passages.js';
+import { cameraBouge, fondPassage } from './domaine/passages.js';
 
 export const ETAPES = ['Lecture de la vidéo', 'Chargement du modèle de pose', 'Repérage des passages', 'Estimation de pose image par image', 'Calcul des mesures'];
 const poses = {};
@@ -52,7 +52,7 @@ export async function analyser(file, options, { onStep = () => {}, onProgress = 
       const frames = await poseOnPassage(v, pose.landmarker, p, scan, fps, (...args) => {
         stop(); onProgress(++fait / total); onFrame(...args);
       }, source);
-      // agitation du fond sur la fenêtre de ce passage : décide du mode caméra fixe ou mobile (voir analyse.js)
+      // agitation du fond sur la fenêtre de ce passage : décide du mode caméra fixe ou mobile (voir passages.js)
       passes.push({ kind: p.kind, dir: p.dir, t0: p.t0, t1: p.t1, fond: fondPassage(scan.mouvement, p.t0, p.t1), frames });
     }
 

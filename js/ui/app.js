@@ -1,6 +1,6 @@
 // Interface : navigation, formulaire et suivi de l'analyse, historique et comparaison.
 import { analyser, ETAPES } from '../pipeline.js';
-import { ALGO, aJour, profils } from '../domaine/analyse.js';
+import { ALGO, aJour, profils } from '../domaine/passages.js';
 import { REPERES, typique, comparer } from '../domaine/reperes.js';
 import { saveAnalysis, listAnalyses, getAnalysis, deleteAnalysis, deleteAll } from '../infra/stockage.js';
 import { afficherRapport, CLASSE } from './rapport.js';

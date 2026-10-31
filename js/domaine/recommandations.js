@@ -7,7 +7,7 @@
 //   - « manque » : une vue n'a pas pu être mesurée (st = 'na').
 
 import { REPERES, statut, dansBande, typique, bande, libelle, seuil } from './reperes.js';
-import { profils, frontaux } from './analyse.js';
+import { profils, frontaux } from './passages.js';
 import { fmt, fu } from '../format.js';
 
 const RANG = { ok: 0, hors: 1, loin: 2 };
@@ -23,7 +23,7 @@ const pluriel = (n, mot) => `${n} ${mot}${n > 1 ? 's' : ''}`;
  * @typedef {{ cle: string, vise: string[], t: string, li: string[], why: string, sources: [string, number][],
  *   objectif?: { k: string, min: number, max: number } }} Piste
  */
-/** @param {{ passes: import('./analyse.js').Passage[], sexe?: 'homme' | 'femme' }} a */
+/** @param {{ passes: import('./passages.js').Passage[], sexe?: 'homme' | 'femme' }} a */
 export function bilan(a) {
   const prof = profils(a), fr = frontaux(a);
   // valeurs typiques et contexte des repères (allure, sexe) : une seule source pour tout le rapport

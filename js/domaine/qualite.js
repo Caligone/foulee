@@ -1,7 +1,7 @@
 // Qualité du tournage : ce qui rend les mesures fiables ou non, vérifié après coup sur l'analyse. Module pur.
 // Chaque point dit ce qui va, ou ce qu'il faut changer à la prochaine vidéo.
 
-import { profils, frontaux, nbAppuis, MIN_APPUIS, cameraBouge } from './analyse.js';
+import { profils, frontaux, nbAppuis, MIN_APPUIS, cameraBouge } from './passages.js';
 import { mediane } from './reperes.js';
 
 // seuils de l'appli (pas de norme publiée) : en dessous de ~150 px de jambe, 1 px vaut près de 1 cm à l'échelle du coureur
@@ -10,7 +10,7 @@ export const FPS_MIN = 50;
 // caméra qui bouge : part du fond (coureur exclu) qui diffère de l'image de fond, en médiane sur la vidéo.
 // Seuil de l'appli, calibré le 31/10 : ≤ 1,6 % sur des vidéos téléphone fixe, 7,8 à 48 % sur 8 clips à caméra mobile.
 // Coureur exclu : un plan serré ou un tapis ne déclenchent pas l'alerte. Analyses plus anciennes : ancienne mesure.
-export { FOND_MAX, AGITATION_MAX, cameraBouge } from './analyse.js';
+export { FOND_MAX, AGITATION_MAX, cameraBouge } from './passages.js';
 
 export function qualite(a) {
   const prof = profils(a), fr = frontaux(a), points = [];

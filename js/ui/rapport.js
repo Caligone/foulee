@@ -1,6 +1,6 @@
 // Rapport d'une analyse : à retenir, constats, pistes d'entraînement, mesures, vues de face / dos, lecteur, méthode.
 import { REPERES, bande, bandeLarge, classe, statut, libelle, seuil, LIBELLES } from '../domaine/reperes.js';
-import { VUES, ETATS, etat, profils, frontaux, appuis } from '../domaine/analyse.js';
+import { VUES, ETATS, etat, profils, frontaux, appuis } from '../domaine/passages.js';
 import { bilan } from '../domaine/recommandations.js';
 import { qualite } from '../domaine/qualite.js';
 import { drawFrame, drawTarget, css, PHOTO } from './dessin.js';

@@ -76,7 +76,7 @@ Malisoux et al. 2023 (OJSM) · Heiderscheit et al. 2011 (MSSE) · Lieberman et a
 ```
 index.html, css/        interface (pas d'étape de build)
 js/domaine/             le métier, en modules purs (testables en Node)
-  analyse.js            Analyse, Passage (états), Appui, version de l'algorithme et recalcul
+  passages.js           Analyse, Passage (états), Appui, version de l'algorithme et recalcul
   mesures.js            calcul des mesures (profil, face, dos) à partir des points de pose
   reperes.js            repères publiés ou indicatifs, statuts, comparaison de deux analyses
   recommandations.js    constats « En bref » et exercices « Quoi travailler », avec leurs sources
