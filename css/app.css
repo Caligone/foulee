@@ -108,6 +108,16 @@ input[type=range]{width:100%;padding:0}
 .metric h4 .chip{font-size:.85rem}
 .vals{line-height:1.2}.vals b{font-size:1.5rem;font-weight:700}
 .vals span{color:var(--muted);margin-left:6px}
+.sumrow{display:flex;gap:16px;align-items:flex-start;justify-content:space-between}
+.fig{margin:0;flex:0 0 116px;display:flex;flex-direction:column;align-items:center;gap:2px}
+.fig svg{width:108px;height:108px;overflow:visible}
+.fig .fz{fill:var(--band);stroke:var(--ok);stroke-width:1}
+.fig .f0{stroke:var(--muted);stroke-width:1.5;stroke-dasharray:3 3}
+.fig .fg,.fig .fc{stroke:var(--muted);stroke-width:3;stroke-linecap:round}
+.fig .fx{stroke:var(--c);fill:var(--c);stroke-width:5;stroke-linecap:round}
+.fig figcaption{font-size:.72rem;color:var(--muted);white-space:nowrap}
+.fig i{display:inline-block;width:10px;height:4px;border-radius:2px;vertical-align:2px;margin-right:3px}
+.fig .lx{background:var(--c)}.fig .lz{background:var(--band);outline:1px solid var(--ok);margin-left:6px}
 .what{font-size:.9rem;color:var(--muted);margin:0;max-width:46ch}
 .ref{font-size:.86rem;color:var(--muted)}
 .rel{font-size:.84rem;line-height:1.3;color:var(--muted)}

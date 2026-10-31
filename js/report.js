@@ -110,6 +110,40 @@ export function synthesize(passes) {
 
 // ---------- Jauges ----------
 const pos = (x, sc) => Math.max(0, Math.min(100, (x - sc[0]) / (sc[1] - sc[0]) * 100));
+// ---------- Schémas « toi / repère » (vue de profil, coureur tourné vers la droite) ----------
+// angle de la mesure → direction du segment dans le schéma : θ = base + sens × valeur (0° = vers la droite, 90° = vers le bas)
+const FIG = {
+  shank_deg: { at: [50, 8], base: 90, sgn: -1, l: 82 },                       // tibia sous le genou, + = cheville devant
+  foot_deg: { at: [14, 70], base: 0, sgn: -1, ground: true, l: 72 },           // semelle depuis le talon, + = pointe levée
+  knee_ic: { at: [50, 50], base: 90, sgn: 1, ctx: [50, 6], l: 44 },           // jambe sous la cuisse, + = genou plié
+  knee_max: { at: [50, 50], base: 90, sgn: 1, ctx: [50, 6], l: 44 },
+  thigh_to: { at: [50, 8], base: 90, sgn: 1, l: 82 },                         // cuisse sous la hanche, + = derrière
+  trunk: { at: [50, 92], base: -90, sgn: 1, l: 82 },                           // buste au-dessus du bassin, + = vers l'avant
+  elbow: { at: [36, 54], base: -90, sgn: 1, ctx: [36, 10], l: 44 },            // avant-bras, ouverture du coude
+};
+const pt = (at, th, l) => [at[0] + l * Math.cos(th * Math.PI / 180), at[1] + l * Math.sin(th * Math.PI / 180)].map((x) => x.toFixed(1));
+function figureSVG(k, R, v, st) {
+  const F = FIG[k]; let body = '';
+  if (k === 'heel_hip_pct') {
+    // aplomb du bassin, sol, talon à v % de la longueur de jambe (70 unités) ; zone = seuil de l'appli (15 %)
+    const x0 = 34, L = 70, hx = Math.max(4, Math.min(96, x0 + v / 100 * L));
+    body = `<rect class="fz" x="${x0}" y="80" width="${0.15 * L}" height="8" rx="2"/><line class="fg" x1="4" y1="88" x2="96" y2="88"/>
+      <line class="f0" x1="${x0}" y1="8" x2="${x0}" y2="88"/><circle class="fx" cx="${x0}" cy="10" r="5"/><circle class="fx" cx="${hx}" cy="84" r="5"/>`;
+  } else if (F && Number.isFinite(v)) {
+    const th = (x) => F.base + F.sgn * x;
+    if (R.band) { const [a, b] = [th(R.band[0]), th(R.band[1])].sort((x, y) => x - y);
+      body += `<path class="fz" d="M${F.at} L${pt(F.at, a, F.l + 4)} A${F.l + 4} ${F.l + 4} 0 0 1 ${pt(F.at, b, F.l + 4)} Z"/>`; }
+    if (F.ground) body += `<line class="fg" x1="4" y1="${F.at[1]}" x2="96" y2="${F.at[1]}"/>`;
+    else { const z = pt(F.at, F.base, F.l + 4); body += `<line class="f0" x1="${F.at[0]}" y1="${F.at[1]}" x2="${z[0]}" y2="${z[1]}"/>`; } // zéro de la mesure
+    if (F.ctx) body += `<line class="fc" x1="${F.at[0]}" y1="${F.at[1]}" x2="${F.ctx[0]}" y2="${F.ctx[1]}"/>`;
+    const e = pt(F.at, th(v), F.l);
+    body += `<line class="fx" x1="${F.at[0]}" y1="${F.at[1]}" x2="${e[0]}" y2="${e[1]}"/><circle class="fx" cx="${F.at[0]}" cy="${F.at[1]}" r="4"/>`;
+  } else return '';
+  const zone = k === 'heel_hip_pct' ? 'seuil appli' : R.band ? 'repère' : '';
+  return `<figure class="fig ${STATUS[st][0]}"><svg viewBox="0 0 100 100" aria-hidden="true">${body}</svg>
+    <figcaption><i class="lx"></i>toi${zone ? ` <i class="lz"></i>${zone}` : ''}</figcaption></figure>`;
+}
+
 export function gaugesHTML(prof) {
   const ty = typical(prof), n = prof.length;
   let h = '';
@@ -127,7 +161,7 @@ export function gaugesHTML(prof) {
       // une ligne par mesure ; le détail (passages, source, fiabilité) ne s'ouvre d'office que pour ce qui sort de la norme
       h += `<details class="metric" id="m-${k}"${st !== 'ok' ? ' open' : ''}><summary>
         <div class="name"><h4>${R.label} <span class="chip ${STATUS[st][0]}">${STATUS[st][1]}</span></h4>
-        <div class="vals"><b>${fmt(v, d)} ${u}</b>${extra}</div><p class="what">${R.what}</p></div>
+        <div class="sumrow"><div><div class="vals"><b>${fmt(v, d)} ${u}</b>${extra}</div><p class="what">${R.what}</p></div>${figureSVG(k, R, v, st)}</div></div>
         <div><div class="gauge" role="img" aria-label="${R.label} : ${fmt(v, d)} ${u}. ${band}"><div class="track"></div>
         ${R.band ? `<div class="bandz" style="left:${pos(R.band[0], R.sc)}%;width:${pos(R.band[1], R.sc) - pos(R.band[0], R.sc)}%"></div>` : ''}
         ${n > 1 ? vals.map((x) => `<div class="pt" style="left:${pos(x, R.sc)}%"></div>`).join('') : ''}
