@@ -44,7 +44,7 @@ export const pace = (p) => Number.isFinite(p) ? `${Math.floor(p)}:${String(Math.
 const med = (a) => { const b = a.filter(Number.isFinite).sort((x, y) => x - y); return b.length ? (b.length % 2 ? b[b.length >> 1] : (b[b.length / 2 - 1] + b[b.length / 2]) / 2) : NaN; };
 // valeur retenue pour chaque mesure : médiane des passages de profil (un passage raté ne fait pas basculer le verdict)
 export const typical = (prof) => Object.fromEntries([...Object.keys(REFS), 'heel_hip_cm'].map((k) => [k, med(prof.map((p) => p.metrics[k]))]));
-const DEC = { vosc_cm: 1, cadence: 0, contact_ms: 0, duty: 0 };
+export const DEC = { vosc_cm: 1, cadence: 0, contact_ms: 0, duty: 0 };
 
 export function frontalStatus(fm) {
   const out = [];

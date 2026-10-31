@@ -2,7 +2,7 @@ import { loadPose, openVideo, scanVideo, findPassages, poseOnPassage } from './e
 import { openFrames } from './frames.js';
 import { profileMetrics, frontalMetrics } from './metrics.js';
 import { saveAnalysis, listAnalyses, getAnalysis, deleteAnalysis, deleteAll } from './store.js';
-import { synthesize, gaugesHTML, drawFrame, drawContact, drawFrontal, drawTarget, typical, fmt, pace, REFS, STATUS, PHOTO, css } from './report.js';
+import { synthesize, gaugesHTML, DEC, drawFrame, drawContact, drawFrontal, drawTarget, typical, fmt, pace, REFS, STATUS, PHOTO, css } from './report.js';
 
 const $ = (s) => document.querySelector(s);
 const params = new URLSearchParams(location.search);
@@ -170,22 +170,33 @@ function frontalHTML(p, a) {
   <p class="ref">Pied / ligne médiane : position du talon par rapport au milieu du bassin, en % de la largeur du bassin (négatif = le pied croise la ligne). ${back ? `Chute du bassin : sains 3,7 ± 1,9°, blessés 6,4 ± 2,1° (Bramah 2018). Inclinaison de caméra estimée et retirée : ${fmt(m.roll, 1)}°. Genou : + = vers l'intérieur ; asymptomatiques 4,0 ± 3,3° (Vasconcelos 2022), pas de seuil.` : 'De face, la chute du bassin et le genou ne sont pas chiffrés : filme de dos pour les obtenir.'}</p>`;
 }
 
-// comparaison de deux analyses de l'historique (résumés de listAnalyses)
+// comparaison de deux analyses de l'historique : mêmes valeurs que le rapport (médiane des passages de profil).
+// Verdict, seulement si l'écart dépasse la marge de mesure (seuil de l'appli, d'après l'écart observé entre modèles) :
+// changement de statut, ou à statut égal hors norme, rapprochement du repère ; dans la norme des deux côtés : stable.
+const NOISE = { cadence: 3, contact_ms: 25, duty: 3, vosc_cm: 1, foot_deg: 4, shank_deg: 4, heel_hip_pct: 4, knee_ic: 4, knee_max: 4, thigh_to: 4, trunk: 3 };
+const BETTER = { cadence: 1, heel_hip_pct: -1 }; // sans repère publié : sens souhaité ; sinon, se rapprocher du repère
 function compareHTML(after, before) {
-  const prof = (x) => x.summary.filter((p) => p.kind === 'profil' && p.metrics?.nSteps >= 2).map((p) => p.metrics);
-  const cur = prof(after), old = prof(before);
-  if (!cur.length || !old.length) return '<p class="empty">Il faut un passage de profil exploitable dans chacune des deux analyses.</p>';
-  // on compare les passages d'allure la plus proche
-  let best = null;
-  for (const c of cur) for (const o of old) { const d = Math.abs(c.speed - o.speed); if (!best || d < best.d) best = { c, o, d }; }
-  const keys = ['cadence', 'contact_ms', 'vosc_cm', 'foot_deg', 'shank_deg', 'heel_hip_pct', 'knee_ic', 'trunk'];
-  const better = { cadence: 1, contact_ms: -1, vosc_cm: -1, shank_deg: -1, heel_hip_pct: -1, trunk: 1 };
-  const rows = keys.map((k) => {
-    const dv = best.c[k] - best.o[k]; const s = better[k] ? Math.sign(dv) * better[k] : 0;
-    return `<tr><td>${REFS[k].label}</td><td class="num">${fmt(best.o[k], k === 'vosc_cm' ? 1 : 0)}</td><td class="num">${fmt(best.c[k], k === 'vosc_cm' ? 1 : 0)}</td><td class="num ${s > 0 ? 'delta-good' : s < 0 ? 'delta-bad' : ''}">${dv >= 0 ? '+' : ''}${fmt(dv, k === 'vosc_cm' ? 1 : 0)}</td><td>${REFS[k].unit}</td></tr>`;
-  }).join('');
-  return `<p class="muted">Passages d'allure la plus proche : ${pace(best.o.pace)} → ${pace(best.c.pace)} min/km.${best.d > 0.3 ? ' Allures assez différentes : comparaison à prendre avec prudence.' : ''}</p>
-    <div class="tablewrap"><table><thead><tr><th>Mesure</th><th>Avant</th><th>Après</th><th>Écart</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  const prof = (x) => x.summary.filter((p) => p.kind === 'profil' && p.metrics?.nSteps >= 2);
+  if (!prof(after).length || !prof(before).length) return '<p class="empty">Il faut un passage de profil exploitable dans chacune des deux analyses.</p>';
+  const A = typical(prof(after)), B = typical(prof(before));
+  const off = (k, v) => BETTER[k] ? -BETTER[k] * v : REFS[k].band ? Math.max(0, REFS[k].band[0] - v, v - REFS[k].band[1]) : 0;
+  const rank = { ok: 0, warn: 1, bad: 2 };
+  const rows = Object.keys(NOISE).filter((k) => Number.isFinite(A[k]) && Number.isFinite(B[k])).map((k) => {
+    const d = DEC[k] ?? 0, dv = A[k] - B[k], gain = off(k, B[k]) - off(k, A[k]);
+    const rb = rank[REFS[k].status(B[k], B)], ra = rank[REFS[k].status(A[k], A)];
+    const real = Math.abs(dv) >= NOISE[k]; // en dessous, même un changement de statut peut venir de la mesure
+    const v = real && (ra < rb || (ra === rb && ra > 0 && gain > 0)) ? ['up', 'Mieux']
+      : real && (ra > rb || (ra === rb && ra > 0 && gain < 0)) ? ['down', 'Moins bien'] : ['same', 'Stable'];
+    const chip = (ty) => `<span class="chip ${STATUS[REFS[k].status(ty[k], ty)][0]}">${fmt(ty[k], d)} ${REFS[k].unit}</span>`;
+    return { v, html: `<tr><td>${REFS[k].label}</td><td>${chip(B)}</td><td>${chip(A)}</td><td class="num">${dv >= 0 ? '+' : ''}${fmt(dv, d)}</td><td><b class="trend ${v[0]}">${v[1]}</b></td></tr>` };
+  });
+  const order = { down: 0, up: 1, same: 2 };
+  rows.sort((x, y) => order[x.v[0]] - order[y.v[0]]);
+  const n = (t) => rows.filter((r) => r.v[0] === t).length;
+  const pa = (x) => { const v = prof(x).map((p) => p.metrics.pace).sort((a, b) => a - b); return v[v.length >> 1]; }, dp = Math.abs(pa(after) - pa(before));
+  return `<p class="cmpsum"><b class="trend up">${n('up')} mieux</b> · <b class="trend down">${n('down')} moins bien</b> · <b class="trend same">${n('same')} stables</b></p>
+    <p class="muted">Allure médiane : ${pace(pa(before))} → ${pace(pa(after))} min/km.${dp > 0.3 ? ' Allures assez différentes : la cadence, le contact et l\'angle du pied changent avec la vitesse, compare plutôt deux vidéos à la même allure.' : ''} « Stable » : écart plus petit que la marge de mesure, ou mesure dans la norme les deux fois.</p>
+    <div class="tablewrap"><table><thead><tr><th>Mesure</th><th>Avant</th><th>Après</th><th>Écart</th><th></th></tr></thead><tbody>${rows.map((r) => r.html).join('')}</tbody></table></div>`;
 }
 
 // photo de chaque mesure : l'appui le plus proche de la valeur retenue (médiane), pas le pire

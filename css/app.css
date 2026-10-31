@@ -137,7 +137,8 @@ th,td{padding:9px 12px;border-bottom:1px solid var(--line);text-align:left;white
 th{font-weight:600;font-size:.85rem;color:var(--muted)}
 td.num,th.num{text-align:right}
 tr.clickable{cursor:pointer} tr.clickable:hover td{background:var(--bg)}
-.delta-good{color:var(--ok)} .delta-bad{color:var(--bad)}
+.trend.up{color:var(--ok)}.trend.down{color:var(--bad)}.trend.same{color:var(--muted);font-weight:600}
+.cmpsum{font-size:1.05rem;margin:0}
 .note{border-left:3px solid var(--warn);padding:10px 14px;background:var(--surface);font-size:.93rem}
 .empty{color:var(--muted);padding:20px;border:1px dashed var(--line);border-radius:8px}
 .chart{width:100%;height:auto}
