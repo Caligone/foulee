@@ -11,11 +11,32 @@ const MP4BOX_LOCAL = new URL('../../vendor/mp4box/mp4box.all.mjs', import.meta.u
 // source = { kind, fps, frames(t0, t1, every) } ; frames() rend des { f, t, src } dans l'ordre,
 // src (VideoFrame ou <video>) n'est valable que jusqu'à l'image suivante.
 export async function openFrames(file, v) {
-  try {
-    const wc = await webcodecsSource(file);
-    if (wc) return wc;
-  } catch (e) { console.warn('WebCodecs indisponible, repli sur les sauts', e); }
-  return seekSource(v);
+  let wc = null;
+  try { wc = await webcodecsSource(file); } catch (e) { console.warn('WebCodecs indisponible, repli sur les sauts', e); }
+  if (!wc) return seekSource(v);
+  // Safari iOS peut décoder les premières images puis échouer : on bascule sur les sauts là où le décodage s'est arrêté
+  const decode = wc.frames;
+  wc.frames = async function* (t0, t1, every = 0) {
+    const it = decode(t0, t1, every);
+    let t = t0;
+    try {
+      for (;;) {
+        let r;
+        try { r = await it.next(); } catch (e) {
+          console.warn('Décodage WebCodecs interrompu, repli sur les sauts', e);
+          const sauts = await seekSource(v);
+          wc.kind = 'seek'; wc.fps = sauts.fps = wc.fps || sauts.fps;
+          wc.frames = sauts.frames;
+          yield* sauts.frames(t, t1, every);
+          return;
+        }
+        if (r.done) return;
+        t = r.value.t + (every || 1 / wc.fps);
+        yield r.value;
+      }
+    } finally { await it.return?.(); }
+  };
+  return wc;
 }
 
 async function loadMp4Box() {
