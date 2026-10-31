@@ -1,6 +1,6 @@
 # Foulée
 
-App web d'analyse de foulée à partir d'une vidéo de course, 100 % dans le navigateur (MediaPipe Pose, WebCodecs). Publiée sur GitHub Pages par `.github/workflows/pages.yml` ; `serveur.py` sert à l'usage hors ligne. Architecture : section Structure du README.
+App web d'analyse de foulée à partir d'une vidéo de course, 100 % dans le navigateur (MediaPipe Pose, WebCodecs). Publiée sur https://calig.one/foulee/ (GitHub Pages) par `.github/workflows/pages.yml` ; `serveur.py` sert à l'usage hors ligne. Architecture : section Structure du README.
 
 ## Contraintes
 - La vidéo ne quitte jamais la machine. Seules les dépendances (MediaPipe, modèle, mp4box, polices) viennent d'un CDN si `vendor/` est absent.

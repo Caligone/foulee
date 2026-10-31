@@ -9,7 +9,7 @@ La vidéo n'est jamais envoyée nulle part : tout le calcul se fait localement, 
 
 ## Démarrer
 
-**En ligne** : [caligone.github.io/foulee](https://caligone.github.io/foulee/), dans Chrome, Edge ou Safari. La page charge MediaPipe et le modèle de pose (≈ 50 Mo) depuis un CDN ; la vidéo, elle, reste dans ton navigateur.
+**En ligne** : [calig.one/foulee](https://calig.one/foulee/), dans Chrome, Edge ou Safari. La page charge MediaPipe et le modèle de pose (≈ 50 Mo) depuis un CDN ; la vidéo, elle, reste dans ton navigateur.
 
 **Hors ligne** (Python 3) :
 
