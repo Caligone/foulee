@@ -127,7 +127,11 @@ async function webcodecsSource(file, index) {
       while (!done) {
         // contre-pression : peu d'images décodées en attente (elles occupent la mémoire vidéo)
         while (k < samples.length && ready.length + dec.decodeQueueSize < 6) {
-          const s = samples[k], data = await bytes(k);
+          const s = samples[k];
+          // images « de tête » d'une image clé ouverte (HEVC de l'iPhone) : datées d'avant elle, elles dépendent du
+          // groupe précédent, qu'on n'a pas décodé. Chrome les ignore, le décodeur d'Apple échoue : on ne les envoie pas
+          if (k > k0 && !s.sync && s.t < samples[k0].t) { k++; continue; }
+          const data = await bytes(k);
           // décodeur fermé par une erreur : on remonte sa cause plutôt que « not configured »
           if (dec.state !== 'configured') throw failure ?? new Error(`décodeur ${dec.state}`);
           dec.decode(new EncodedVideoChunk({ type: s.sync ? 'key' : 'delta', timestamp: Math.round(s.t * 1e6), duration: Math.round(s.dur * 1e6), data }));

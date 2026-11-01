@@ -169,6 +169,6 @@ async function renderHistory() {
 
 if (params.get('autotest')) {
   // mode test : analyse un fichier servi localement
-  const r = await fetch(params.get('autotest')); setFile(new File([await r.blob()], params.get('autotest').split('/').pop()));
+  const r = await fetch(params.get('autotest')), b = await r.blob(); setFile(new File([b], params.get('autotest').split('/').pop(), { type: b.type })); // Safari ne lit pas une vidéo sans type
   run().then(() => { window.__done = true; }).catch((e) => { window.__done = true; window.__err = String(e.stack || e); fail(e); });
 }
