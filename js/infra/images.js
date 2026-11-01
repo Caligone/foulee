@@ -11,9 +11,12 @@ const MP4BOX_LOCAL = new URL('../../vendor/mp4box/mp4box.all.mjs', import.meta.u
 // source = { kind, fps, frames(t0, t1, every) } ; frames() rend des { f, t, src } dans l'ordre,
 // src (VideoFrame ou <video>) n'est valable que jusqu'à l'image suivante.
 export async function openFrames(file, v) {
+  // l'index du MP4 donne la cadence exacte, même sans WebCodecs : Safari et Firefox sautent des images
+  // à l'affichage d'un ralenti, et y mesurer la cadence donne 60 ou 30 i/s pour une vidéo à 240
+  const index = {};
   let wc = null;
-  try { wc = await webcodecsSource(file); } catch (e) { console.warn('WebCodecs indisponible, repli sur les sauts', e); }
-  if (!wc) return seekSource(v);
+  try { wc = await webcodecsSource(file, index); } catch (e) { console.warn('WebCodecs indisponible, repli sur les sauts', e); }
+  if (!wc) return seekSource(v, index.fps);
   // Safari iOS peut décoder les premières images puis échouer : on bascule sur les sauts là où le décodage s'est arrêté
   const decode = wc.frames;
   wc.frames = async function* (t0, t1, every = 0) {
@@ -24,7 +27,7 @@ export async function openFrames(file, v) {
         let r;
         try { r = await it.next(); } catch (e) {
           console.warn('Décodage WebCodecs interrompu, repli sur les sauts', e);
-          const sauts = await seekSource(v);
+          const sauts = await seekSource(v, wc.fps);
           wc.kind = 'seek'; wc.fps = sauts.fps = wc.fps || sauts.fps;
           wc.frames = sauts.frames;
           yield* sauts.frames(t, t1, every);
@@ -44,8 +47,7 @@ async function loadMp4Box() {
   return import(local ? MP4BOX_LOCAL : MP4BOX_CDN);
 }
 
-async function webcodecsSource(file) {
-  if (!('VideoDecoder' in window)) return null;
+async function webcodecsSource(file, index) {
   const MP4Box = await loadMp4Box();
   MP4Box.Log.setLogLevel?.(MP4Box.Log.error);
   // lecture de l'index (moov) par morceaux : mp4box indique où reprendre et saute les données (mdat)
@@ -59,6 +61,8 @@ async function webcodecsSource(file) {
   }
   const tr = info?.videoTracks[0];
   if (!tr) return null;
+  const fps = index.fps = tr.nb_samples / (tr.duration / tr.timescale);
+  if (!('VideoDecoder' in window)) return null;
   const entry = mp4.getTrackById(tr.id).mdia.minf.stbl.stsd.entries[0];
   const box = entry.hvcC || entry.avcC || entry.vpcC || entry.av1C;
   let description;
@@ -75,7 +79,6 @@ async function webcodecsSource(file) {
   const rank = new Map(byTime.map((t, i) => [Math.round(t * 1e6), i]));
   // Safari iOS annonce le HEVC pris en charge puis refuse la configuration : on essaie pour de bon
   if (!(await decodeUneImage(file, config, samples.find((s) => s.sync)))) return null;
-  const fps = samples.length / (tr.duration / tr.timescale);
   // cadence variable (Android en basse lumière, enregistreurs d'écran) : les mesures supposent un pas de temps constant
   const durees = samples.map((x) => x.dur).filter((x) => x > 0), dm = durees.reduce((a, b) => a + b, 0) / durees.length;
   const vfr = Math.sqrt(durees.reduce((a, b) => a + (b - dm) ** 2, 0) / durees.length) / dm > 0.15;
@@ -157,8 +160,8 @@ async function decodeUneImage(file, config, s) {
   return ok;
 }
 
-async function seekSource(v) {
-  const source = { kind: 'seek', fps: (await estimateFps(v)) || null, frames };
+async function seekSource(v, fps) {
+  const source = { kind: 'seek', fps: fps || (await estimateFps(v)) || null, frames };
   async function* frames(t0, t1, every = 0) {
     const F = source.fps || 30, step = every ? Math.max(1, Math.round(every * F)) : 1;
     for (let f = Math.ceil(t0 * F); f <= Math.floor(t1 * F); f += step) {
