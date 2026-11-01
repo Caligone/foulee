@@ -62,7 +62,7 @@ export async function analyser(file, options, { onStep = () => {}, onProgress = 
       id: crypto.randomUUID?.() ?? String(Date.now()), date: Date.now(), videoDate: file.lastModified, label: options.label ?? '',
       videoName: file.name, height: options.height, sexe: options.sexe, fps, fpsNote, duration: v.duration,
       size: [v.videoWidth, v.videoHeight], model: pose.modelPath.includes('heavy') ? 'heavy' : 'autre', delegate: pose.delegate,
-      decoder: source.kind, pannesDecodage: source.pannes ?? 0, vfr: source.vfr ?? null, mouvement: scan.mouvement, algo: ALGO, passes,
+      decoder: source.kind, pannesDecodage: source.pannes ?? [], vfr: source.vfr ?? null, mouvement: scan.mouvement, algo: ALGO, passes,
     };
   } finally {
     URL.revokeObjectURL(v.src);

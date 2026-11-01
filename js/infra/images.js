@@ -21,7 +21,7 @@ export async function openFrames(file, v) {
   // Safari iOS peut décoder des images puis échouer : on relance un décodeur depuis l'image clé précédente,
   // et après PANNES_MAX échecs on bascule sur les sauts là où le décodage s'est arrêté
   const decode = wc.frames;
-  wc.pannes = 0;
+  wc.pannes = []; // détail de chaque panne, gardé dans l'analyse pour le diagnostic
   wc.frames = async function* (t0, t1, every = 0) {
     let it = decode(t0, t1, every);
     let t = t0, n = 0;
@@ -29,9 +29,9 @@ export async function openFrames(file, v) {
       for (;;) {
         let r;
         try { r = await it.next(); } catch (e) {
-          wc.pannes++;
-          console.warn(`Décodage WebCodecs interrompu (panne ${wc.pannes}, à ${t.toFixed(3)} s après ${n} images)`, e);
-          if (wc.pannes < PANNES_MAX) { it = decode(t, t1, every); continue; }
+          wc.pannes.push(`${t.toFixed(3)} s, après ${n} images, ${e?.name}: ${e?.message}`);
+          console.warn('Décodage WebCodecs interrompu :', wc.pannes.at(-1));
+          if (wc.pannes.length < PANNES_MAX) { it = decode(t, t1, every); continue; }
           console.warn('Repli sur les sauts');
           const sauts = await seekSource(v, wc.fps);
           wc.kind = 'seek'; wc.fps = sauts.fps = wc.fps || sauts.fps;
@@ -127,8 +127,10 @@ async function webcodecsSource(file, index) {
       while (!done) {
         // contre-pression : peu d'images décodées en attente (elles occupent la mémoire vidéo)
         while (k < samples.length && ready.length + dec.decodeQueueSize < 6) {
-          const s = samples[k];
-          dec.decode(new EncodedVideoChunk({ type: s.sync ? 'key' : 'delta', timestamp: Math.round(s.t * 1e6), duration: Math.round(s.dur * 1e6), data: await bytes(k) }));
+          const s = samples[k], data = await bytes(k);
+          // décodeur fermé par une erreur : on remonte sa cause plutôt que « not configured »
+          if (dec.state !== 'configured') throw failure ?? new Error(`décodeur ${dec.state}`);
+          dec.decode(new EncodedVideoChunk({ type: s.sync ? 'key' : 'delta', timestamp: Math.round(s.t * 1e6), duration: Math.round(s.dur * 1e6), data }));
           k++;
         }
         if (k >= samples.length && dec.decodeQueueSize === 0 && !ready.length) await dec.flush();
