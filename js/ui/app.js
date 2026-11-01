@@ -62,6 +62,12 @@ function fail(err) {
   const el = $('#form-err'); el.hidden = false; el.textContent = err.message || String(err);
 }
 
+// écran allumé pendant l'analyse : en veille, l'iPhone suspend la page. Le verrou tombe quand la page est cachée,
+// on le reprend à son retour
+let verrou = null;
+const garderEcran = async () => { try { verrou = await navigator.wakeLock?.request('screen'); } catch {} };
+document.addEventListener('visibilitychange', () => { if (enCours && document.visibilityState === 'visible') garderEcran(); });
+
 async function run() {
   if (!file || enCours) return;
   enCours = new AbortController();
@@ -69,6 +75,7 @@ async function run() {
   try { localStorage.setItem('foulee-profile', JSON.stringify({ h: $('#height').value, s: $('#sexe').value })); } catch {}
   const live = $('#live').getContext('2d');
   let vues = 0;
+  garderEcran();
   const a = await analyser(file, {
     height: Number($('#height').value) / 100, sexe: $('#sexe').value || undefined,
     fps: Number($('#fps').value) || null, label: $('#label').value.trim(), modelUrl: params.get('model') ?? undefined,
@@ -79,7 +86,7 @@ async function run() {
       live.drawImage(crop, 0, 0, 384, 384);
       if (lm) { live.fillStyle = '#f0b93a'; for (const q of lm.slice(11)) { live.beginPath(); live.arc((q[0] - X0) / side * 384, (q[1] - Y0) / side * 384, 3, 0, 7); live.fill(); } }
     },
-  });
+  }).finally(() => { verrou?.release().catch(() => {}); verrou = null; });
   enCours = null;
   try { await saveAnalysis(a); } catch (e) { console.warn('sauvegarde impossible', e); a.unsaved = true; }
   window.__lastAnalysis = a;
