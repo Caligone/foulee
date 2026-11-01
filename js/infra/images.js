@@ -5,6 +5,7 @@
 
 import { seek, estimateFps } from './video.js';
 
+const PANNES_MAX = 3; // relances du décodeur WebCodecs avant le repli sur les sauts, pour toute l'analyse
 const MP4BOX_CDN = 'https://cdn.jsdelivr.net/npm/mp4box@2.4.1/dist/mp4box.all.mjs';
 const MP4BOX_LOCAL = new URL('../../vendor/mp4box/mp4box.all.mjs', import.meta.url).href;
 
@@ -17,16 +18,21 @@ export async function openFrames(file, v) {
   let wc = null;
   try { wc = await webcodecsSource(file, index); } catch (e) { console.warn('WebCodecs indisponible, repli sur les sauts', e); }
   if (!wc) return seekSource(v, index.fps);
-  // Safari iOS peut décoder les premières images puis échouer : on bascule sur les sauts là où le décodage s'est arrêté
+  // Safari iOS peut décoder des images puis échouer : on relance un décodeur depuis l'image clé précédente,
+  // et après PANNES_MAX échecs on bascule sur les sauts là où le décodage s'est arrêté
   const decode = wc.frames;
+  wc.pannes = 0;
   wc.frames = async function* (t0, t1, every = 0) {
-    const it = decode(t0, t1, every);
-    let t = t0;
+    let it = decode(t0, t1, every);
+    let t = t0, n = 0;
     try {
       for (;;) {
         let r;
         try { r = await it.next(); } catch (e) {
-          console.warn('Décodage WebCodecs interrompu, repli sur les sauts', e);
+          wc.pannes++;
+          console.warn(`Décodage WebCodecs interrompu (panne ${wc.pannes}, à ${t.toFixed(3)} s après ${n} images)`, e);
+          if (wc.pannes < PANNES_MAX) { it = decode(t, t1, every); continue; }
+          console.warn('Repli sur les sauts');
           const sauts = await seekSource(v, wc.fps);
           wc.kind = 'seek'; wc.fps = sauts.fps = wc.fps || sauts.fps;
           wc.frames = sauts.frames;
@@ -34,7 +40,7 @@ export async function openFrames(file, v) {
           return;
         }
         if (r.done) return;
-        t = r.value.t + (every || 1 / wc.fps);
+        t = r.value.t + (every || 1e-4); n++; // reprise juste après la dernière image rendue
         yield r.value;
       }
     } finally { await it.return?.(); }
